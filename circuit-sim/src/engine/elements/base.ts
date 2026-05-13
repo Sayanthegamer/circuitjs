@@ -32,7 +32,7 @@ export abstract class CircuitElement implements ICircuitElement {
   protected allocNodes(): void {
     const count = this.getPostCount() + this.getInternalNodeCount();
     this.nodes = new Array(count).fill(0);
-    this.volts = new Array(count).fill(0);
+    this.volts = (new Float64Array(count) as unknown) as number[];
   }
 
   // --- Geometry ---

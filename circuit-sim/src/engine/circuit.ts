@@ -33,17 +33,17 @@ export class Circuit implements IStamper {
 
   // MNA matrix state
   circuitMatrix: number[][] = [];
-  circuitRightSide: number[] = [];
+  circuitRightSide: Float64Array = new Float64Array(0);
   origMatrix: number[][] = [];
-  origRightSide: number[] = [];
+  origRightSide: Float64Array = new Float64Array(0);
   circuitPermute: number[] = [];
   circuitRowInfo: RowInfo[] = [];
   circuitMatrixSize = 0;
   circuitMatrixFullSize = 0;
   circuitNonLinear = false;
   circuitNeedsMap = false;
-  nodeVoltages: number[] = [];
-  lastNodeVoltages: number[] = [];
+  nodeVoltages: Float64Array = new Float64Array(0);
+  lastNodeVoltages: Float64Array = new Float64Array(0);
 
   // Simulation time
   t = 0;
@@ -390,13 +390,13 @@ export class Circuit implements IStamper {
   private stampCircuit(): void {
     const matrixSize = this.nodeList.length - 1 + this.voltageSourceCount;
     this.circuitMatrix = createMatrix(matrixSize);
-    this.circuitRightSide = new Array(matrixSize).fill(0);
-    this.nodeVoltages = new Array(this.nodeList.length - 1).fill(0);
+    this.circuitRightSide = new Float64Array(matrixSize);
+    this.nodeVoltages = new Float64Array(this.nodeList.length - 1);
     if (!this.lastNodeVoltages || this.lastNodeVoltages.length !== this.nodeVoltages.length) {
-      this.lastNodeVoltages = new Array(this.nodeList.length - 1).fill(0);
+      this.lastNodeVoltages = new Float64Array(this.nodeList.length - 1);
     }
     this.origMatrix = createMatrix(matrixSize);
-    this.origRightSide = new Array(matrixSize).fill(0);
+    this.origRightSide = new Float64Array(matrixSize);
     this.circuitMatrixSize = this.circuitMatrixFullSize = matrixSize;
     this.circuitRowInfo = [];
     this.circuitPermute = new Array(matrixSize).fill(0);
@@ -482,7 +482,7 @@ export class Circuit implements IStamper {
 
     const newSize = nn;
     const newMatrix = createMatrix(newSize);
-    const newRs = new Array(newSize).fill(0);
+    const newRs = new Float64Array(newSize);
     let ii = 0;
 
     for (let i = 0; i < matrixSize; i++) {
@@ -590,7 +590,7 @@ export class Circuit implements IStamper {
     return true;
   }
 
-  private applySolvedRightSide(rs: number[]): void {
+  private applySolvedRightSide(rs: Float64Array): void {
     for (let j = 0; j < this.circuitMatrixFullSize; j++) {
       const ri = this.circuitRowInfo[j];
       let res: number;
@@ -664,10 +664,10 @@ export class Circuit implements IStamper {
     return {
       t: this.t,
       timeStep: this.timeStep,
-      nodeVoltages: [...this.nodeVoltages],
+      nodeVoltages: Array.from(this.nodeVoltages),
       elementStates: this.elements.map(e => ({
         id: e.id,
-        volts: [...e.volts],
+        volts: Array.from(e.volts),
         current: e.getCurrent(),
         power: e.type === 'wire' ? 0 : -(e.volts[1] - e.volts[0]) * e.getCurrent(),
       })),
