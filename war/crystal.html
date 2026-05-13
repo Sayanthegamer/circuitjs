@@ -40,11 +40,20 @@ function calc() {
    //if (cl > 0)
    //  fs = Math.sqrt((cs+cp+cl)/(L*(cs*cp+cs*cl)))/(Math.PI*2);
    var fp = 1/(2*Math.PI*Math.sqrt(L*(cp*cs)/(cp+cs)));
-   document.getElementById('result').innerHTML = "Series resonant frequency = " + Math.round(fs) +
-     " Hz <br>Parallel resonant frequency = " + Math.round(fp) +
-     " Hz <br>Q = " + Math.round(2*Math.PI*fp*L/r) +
-     "<br><a href=\"circuitjs.html?cct=$+1+5e-11+12.050203812241895+55+5+50%0A412+112+144+192+144+1+0\\s" +
-       cp + "\\s0+0\\s" + cs + "\\s0+0\\s" + L + "\\s0+0\\s" + r + "\" target=\"_blank\">crystal with these parameters</a>";
+   var res = document.getElementById('result');
+   res.textContent = "";
+   res.appendChild(document.createTextNode("Series resonant frequency = " + Math.round(fs) + " Hz"));
+   res.appendChild(document.createElement("br"));
+   res.appendChild(document.createTextNode("Parallel resonant frequency = " + Math.round(fp) + " Hz"));
+   res.appendChild(document.createElement("br"));
+   res.appendChild(document.createTextNode("Q = " + Math.round(2*Math.PI*fp*L/r)));
+   res.appendChild(document.createElement("br"));
+   var a = document.createElement("a");
+   a.href = "circuitjs.html?cct=$+1+5e-11+12.050203812241895+55+5+50%0A412+112+144+192+144+1+0\\s" +
+       cp + "\\s0+0\\s" + cs + "\\s0+0\\s" + L + "\\s0+0\\s" + r;
+   a.target = "_blank";
+   a.textContent = "crystal with these parameters";
+   res.appendChild(a);
 }
 
 </script>

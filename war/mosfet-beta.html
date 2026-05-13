@@ -33,7 +33,7 @@ function calc() {
    var vgs = units(document.getElementById('vgs').value);
    var vt = units(document.getElementById('vt').value);
    var beta = Math.abs(1/(rds*(vgs-vt)));
-   document.getElementById('result').innerHTML = "beta = " + beta;
+   document.getElementById('result').textContent = "beta = " + beta;
 }
 
 </script>
