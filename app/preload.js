@@ -67,12 +67,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }
 });
 
-// For backward compatibility with the renderer process if it expects these on the window object directly
-// NOTE: With contextIsolation: true, these must be accessed via window.electronAPI or the bridge.
-// Since the simulator code likely uses window.showSaveDialog, we need to make sure it still works.
-// However, contextBridge.exposeInMainWorld('electronAPI', ...) means it will be at window.electronAPI.
-// To keep it at window.showSaveDialog etc. we can expose them directly or change how they are accessed.
-
+// Expose backward-compatible globals for renderer access
 contextBridge.exposeInMainWorld('showSaveDialog', () => ipcRenderer.invoke('dialog:showSaveDialog'));
 contextBridge.exposeInMainWorld('saveFile', async (file, text) => {
   try {
