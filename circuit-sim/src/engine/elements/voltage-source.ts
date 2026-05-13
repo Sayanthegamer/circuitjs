@@ -4,7 +4,7 @@
 // ============================================================
 
 import { CircuitElement } from './base';
-import type { IStamper, Point } from '../types';
+import type { IStamper } from '../types';
 
 export class VoltageSourceElement extends CircuitElement {
   type = 'voltage';

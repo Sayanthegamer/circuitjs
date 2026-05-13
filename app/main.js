@@ -19,8 +19,7 @@ function createWindow () {
     webPreferences: { nativeWindowOpen: true,
                       preload: path.join(__dirname, 'preload.js'),
                       nodeIntegration: false,
-                      contextIsolation: true,
-                      sandbox: true
+                      contextIsolation: true
     }
   })
   windows.push(mainWindow);
@@ -84,23 +83,29 @@ app.on('activate', function () {
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
 
+const approvedPaths = new Set();
+
 ipcMain.handle('dialog:showSaveDialog', async (event, options) => {
-  return await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), options);
+  const result = await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), options);
+  if (!result.canceled && result.filePath) {
+    approvedPaths.add(path.resolve(result.filePath));
+  }
+  return result;
 });
 
 ipcMain.handle('dialog:showOpenDialog', async (event, options) => {
-  return await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), options);
+  const result = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), options);
+  if (!result.canceled && result.filePaths) {
+    result.filePaths.forEach(fp => approvedPaths.add(path.resolve(fp)));
+  }
+  return result;
 });
 
 ipcMain.handle('file:writeFile', async (event, filePath, text) => {
-  if (!filePath || typeof filePath !== 'string' || filePath.trim() === '') {
-    throw new Error('Access denied: no valid file path provided');
-  }
   const resolvedPath = path.resolve(filePath);
-  if (!path.isAbsolute(resolvedPath)) {
-    throw new Error('Access denied: file path must be absolute');
+  if (!approvedPaths.has(resolvedPath)) {
+    throw new Error('Access denied: Unauthorized file path.');
   }
-
   return new Promise((resolve, reject) => {
     fs.writeFile(resolvedPath, text, (err) => {
       if (err) reject(err);
@@ -110,14 +115,10 @@ ipcMain.handle('file:writeFile', async (event, filePath, text) => {
 });
 
 ipcMain.handle('file:readFile', async (event, filePath) => {
-  if (!filePath || typeof filePath !== 'string' || filePath.trim() === '') {
-    throw new Error('Access denied: no valid file path provided');
-  }
   const resolvedPath = path.resolve(filePath);
-  if (!path.isAbsolute(resolvedPath)) {
-    throw new Error('Access denied: file path must be absolute');
+  if (!approvedPaths.has(resolvedPath)) {
+    throw new Error('Access denied: Unauthorized file path.');
   }
-
   return new Promise((resolve, reject) => {
     fs.readFile(resolvedPath, 'utf-8', (err, data) => {
       if (err) reject(err);
