@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Minus, 
   Activity, 
@@ -24,7 +24,7 @@ const CATEGORIES: {
   items: {
     mode: ToolMode;
     label: string;
-    icon: JSX.Element;
+    icon: React.ReactNode;
     desc: string;
   }[];
 }[] = [
