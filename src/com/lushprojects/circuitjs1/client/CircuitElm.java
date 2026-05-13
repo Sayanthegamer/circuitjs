@@ -681,10 +681,6 @@ public abstract class CircuitElm implements Editable {
     }
 
     static void drawThickPolygon(Graphics g, int xs[], int ys[], int c) {
-//	int i;
-//	for (i = 0; i != c-1; i++)
-//	    drawThickLine(g, xs[i], ys[i], xs[i+1], ys[i+1]);
-//	drawThickLine(g, xs[i], ys[i], xs[0], ys[0]);
     	g.setLineWidth(3.0);
     	g.drawPolyline(xs, ys, c);
     	g.setLineWidth(1.0);
@@ -696,14 +692,6 @@ public abstract class CircuitElm implements Editable {
     
     static void drawPolygon(Graphics g, Polygon p) {
     	g.drawPolyline(p.xpoints, p.ypoints, p.npoints);
-/*	int i;
-	int xs[] = p.xpoints;
-	int ys[] = p.ypoints;
-	int np = p.npoints;
-	np -= 3;
-	for (i = 0; i != np-1; i++)
-	    g.drawLine(xs[i], ys[i], xs[i+1], ys[i+1]);
-	g.drawLine(xs[i], ys[i], xs[0], ys[0]);*/
     }
     
     static void drawThickCircle(Graphics g, int cx, int cy, int ri) {
