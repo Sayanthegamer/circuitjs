@@ -1,9 +1,7 @@
 const electron = require('electron')
 // Module to control application life.
-const app = electron.app
-// Module to create native browser window.
-const BrowserWindow = electron.BrowserWindow
-const Menu = electron.Menu
+const { app, BrowserWindow, Menu, ipcMain, dialog } = electron;
+const fs = require('fs');
 
 const path = require('path')
 const url = require('url')
@@ -16,10 +14,13 @@ Menu.setApplicationMenu(false);
 
 function createWindow () {
   // Create the browser window.
-  var mainWindow = new BrowserWindow({width: 800, 
+  var mainWindow = new BrowserWindow({width: 800,
     height: 600,
     webPreferences: { nativeWindowOpen: true,
-                      preload: path.join(__dirname, 'preload.js')
+                      preload: path.join(__dirname, 'preload.js'),
+                      nodeIntegration: false,
+                      contextIsolation: true,
+                      sandbox: true
     }
   })
   windows.push(mainWindow);
@@ -82,3 +83,49 @@ app.on('activate', function () {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+
+ipcMain.handle('dialog:showSaveDialog', async (event, options) => {
+  return await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), options);
+});
+
+ipcMain.handle('dialog:showOpenDialog', async (event, options) => {
+  return await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), options);
+});
+
+ipcMain.handle('file:writeFile', async (event, filePath, text) => {
+  if (!filePath || typeof filePath !== 'string' || filePath.trim() === '') {
+    throw new Error('Access denied: no valid file path provided');
+  }
+  const resolvedPath = path.resolve(filePath);
+  if (!path.isAbsolute(resolvedPath)) {
+    throw new Error('Access denied: file path must be absolute');
+  }
+
+  return new Promise((resolve, reject) => {
+    fs.writeFile(resolvedPath, text, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+});
+
+ipcMain.handle('file:readFile', async (event, filePath) => {
+  if (!filePath || typeof filePath !== 'string' || filePath.trim() === '') {
+    throw new Error('Access denied: no valid file path provided');
+  }
+  const resolvedPath = path.resolve(filePath);
+  if (!path.isAbsolute(resolvedPath)) {
+    throw new Error('Access denied: file path must be absolute');
+  }
+
+  return new Promise((resolve, reject) => {
+    fs.readFile(resolvedPath, 'utf-8', (err, data) => {
+      if (err) reject(err);
+      else resolve(data);
+    });
+  });
+});
+
+ipcMain.on('window:toggleDevTools', (event) => {
+  event.sender.toggleDevTools();
+});
