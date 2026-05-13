@@ -244,7 +244,6 @@ export function drawResistor(
 
   for (let i = 0; i < segments; i++) {
     const t1 = (i + 0.5) / segments;
-    const t2 = (i + 1) / segments;
     const sign = i % 2 === 0 ? 1 : -1;
     const mx = bx1 + (bx2 - bx1) * t1 + perpX * amplitude * sign;
     const my = by1 + (by2 - by1) * t1 + perpY * amplitude * sign;

@@ -8,8 +8,9 @@ export class CapacitorElement extends CircuitElement {
   private compResistance = 0;
   private currentSourceValue = 0;
 
-  constructor(x: number, y: number, x2: number, y2: number) {
+  constructor(x: number, y: number, x2: number, y2: number, capacitance = 1e-3) {
     super(x, y, x2, y2);
+    this.capacitance = capacitance;
   }
 
   stamp(stamper: IStamper): void {
