@@ -97,11 +97,14 @@ public class CustomLogicModel implements Editable {
 	    return "";
 	if (arr.length == 0)
 	    return "";
-	String x = arr[0];
+	StringBuilder x = new StringBuilder();
+	x.append(arr[0]);
 	int i;
-	for (i = 1; i < arr.length; i++)
-	    x += "," + arr[i];
-	return x;
+	for (i = 1; i < arr.length; i++) {
+	    x.append(",");
+	    x.append(arr[i]);
+	}
+	return x.toString();
     }
     
     String [] listToArray(String arr) {
