@@ -136,7 +136,7 @@ export interface ICircuitElement {
 /** Interface for stamping values into the MNA matrix */
 export interface IStamper {
   stampMatrix(i: number, j: number, x: number): void;
-  stampRightSide(i: number, x: number): void;
+  stampRightSide(i: number, x?: number): void;
   stampResistor(n1: number, n2: number, r: number): void;
   stampConductance(n1: number, n2: number, g: number): void;
   stampVoltageSource(n1: number, n2: number, vs: number, v?: number): void;

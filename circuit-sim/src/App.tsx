@@ -2,8 +2,9 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { Circuit, ResistorElement, VoltageSourceElement, WireElement, GroundElement, CapacitorElement, InductorElement, SwitchElement, DiodeElement, LEDElement } from './engine';
 import type { ICircuitElement } from './engine/types';
 import { Camera } from './renderer/camera';
-import { drawGrid, snapToGrid } from './renderer/grid';
+import { drawGrid, snapToGrid, GRID_SIZE } from './renderer/grid';
 import { drawElement, drawGhost } from './renderer/element-renderers';
+import { voltageToColor } from './renderer/voltage-colors';
 import { Toolbar } from './ui/Toolbar';
 import { PropertiesPanel } from './ui/PropertiesPanel';
 import { Plotter, type ProbedItem, type PlotterHandle } from './ui/Plotter';
@@ -372,11 +373,11 @@ function App() {
           break;
         case 'capacitor':
           newElm = new CapacitorElement(placing.x1, placing.y1, x2, y2);
-          (newElm as CapacitorElement).capacitance = 1e-3; // 1mF for visible animation
+          newElm.capacitance = 1e-3; // 1mF for visible animation
           break;
         case 'inductor':
           newElm = new InductorElement(placing.x1, placing.y1, x2, y2);
-          (newElm as InductorElement).inductance = 1; // 1H
+          newElm.inductance = 1; // 1H
           break;
         case 'switch':
           newElm = new SwitchElement(placing.x1, placing.y1, x2, y2);
@@ -455,7 +456,7 @@ function App() {
   }, []);
 
   // --- Property edit ---
-  const selectedElm = selectedId ? (circuitRef.current.getElement(selectedId) ?? null) : null;
+  const selectedElm = selectedId ? circuitRef.current.getElement(selectedId) : null;
 
   const handlePropChange = useCallback((prop: string, value: number) => {
     if (!selectedElm) return;
@@ -486,6 +487,8 @@ function App() {
         selectedId={selectedId}
         showValues={showValues}
         setShowValues={setShowValues}
+        probedItems={probedItems}
+        setProbedItems={setProbedItems}
       />
 
       <div className="main-content">

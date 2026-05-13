@@ -1,4 +1,3 @@
-import React from 'react';
 import type { ICircuitElement } from '../engine/types';
 import type { ResistorElement, VoltageSourceElement } from '../engine';
 import { voltageToColor } from '../renderer/voltage-colors';

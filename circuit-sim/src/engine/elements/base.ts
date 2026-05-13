@@ -55,7 +55,7 @@ export abstract class CircuitElement implements ICircuitElement {
   setNodeVoltage(n: number, v: number): void { this.volts[n] = v; }
 
   getVoltageSource(): number { return this.voltSource; }
-  setVoltageSource(j: number, vs: number): void { this.voltSource = vs; }
+  setVoltageSource(_j: number, vs: number): void { this.voltSource = vs; }
 
   setCurrent(_vsIndex: number, current: number): void { this.current = current; }
 

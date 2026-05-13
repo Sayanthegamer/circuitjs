@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Minus, 
   Activity, 
@@ -17,7 +17,17 @@ interface ComponentPaletteProps {
   setTool: (t: ToolMode) => void;
 }
 
-const CATEGORIES = [
+const CATEGORIES: {
+  id: string;
+  name: string;
+  isOpen: boolean;
+  items: {
+    mode: ToolMode;
+    label: string;
+    icon: JSX.Element;
+    desc: string;
+  }[];
+}[] = [
   {
     id: 'basic',
     name: 'Basic Components',
@@ -104,9 +114,8 @@ export function ComponentPalette({ tool, setTool }: ComponentPaletteProps) {
                 {cat.items.map(item => (
                   <button
                     key={item.label}
-                    className={`palette-item ${tool === item.mode && !item.disabled ? 'active' : ''} ${item.disabled ? 'disabled' : ''}`}
-                    onClick={() => !item.disabled && setTool(item.mode)}
-                    disabled={item.disabled}
+                    className={`palette-item ${tool === item.mode ? 'active' : ''}`}
+                    onClick={() => setTool(item.mode)}
                   >
                     <div className="item-icon-wrapper">
                       {item.icon}
