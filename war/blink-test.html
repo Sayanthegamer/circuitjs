@@ -33,7 +33,7 @@
     function setScr(msg, fname) {
     document.getElementsByName("local")[0].src = "http://127.0.0.1:8888/circuitjs.html?startCircuit="+fname;
     document.getElementsByName("remote")[0].src = "https://lushprojects.com/circuitjs/circuitjs.html?startCircuit="+fname;
-    document.getElementsByName("fname")[0].innerHTML= msg+" "+fname;
+    document.getElementsByName("fname")[0].textContent= msg+" "+fname;
     }
     
     function next() {
