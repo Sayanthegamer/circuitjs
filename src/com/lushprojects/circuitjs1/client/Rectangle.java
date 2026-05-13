@@ -161,6 +161,16 @@ public class Rectangle {
                     (width == r.width) &&
                     (height == r.height));
         }
-        return super.equals(obj);
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 31 * hash + this.x;
+        hash = 31 * hash + this.y;
+        hash = 31 * hash + this.width;
+        hash = 31 * hash + this.height;
+        return hash;
     }
 }
