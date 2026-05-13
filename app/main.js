@@ -91,18 +91,34 @@ ipcMain.handle('dialog:showOpenDialog', async (event, options) => {
   return await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), options);
 });
 
-ipcMain.handle('file:writeFile', async (event, path, text) => {
+ipcMain.handle('file:writeFile', async (event, filePath, text) => {
+  if (!filePath || typeof filePath !== 'string' || filePath.trim() === '') {
+    throw new Error('Access denied: no valid file path provided');
+  }
+  const resolvedPath = path.resolve(filePath);
+  if (!path.isAbsolute(resolvedPath)) {
+    throw new Error('Access denied: file path must be absolute');
+  }
+
   return new Promise((resolve, reject) => {
-    fs.writeFile(path, text, (err) => {
+    fs.writeFile(resolvedPath, text, (err) => {
       if (err) reject(err);
       else resolve();
     });
   });
 });
 
-ipcMain.handle('file:readFile', async (event, path) => {
+ipcMain.handle('file:readFile', async (event, filePath) => {
+  if (!filePath || typeof filePath !== 'string' || filePath.trim() === '') {
+    throw new Error('Access denied: no valid file path provided');
+  }
+  const resolvedPath = path.resolve(filePath);
+  if (!path.isAbsolute(resolvedPath)) {
+    throw new Error('Access denied: file path must be absolute');
+  }
+
   return new Promise((resolve, reject) => {
-    fs.readFile(path, 'utf-8', (err, data) => {
+    fs.readFile(resolvedPath, 'utf-8', (err, data) => {
       if (err) reject(err);
       else resolve(data);
     });
