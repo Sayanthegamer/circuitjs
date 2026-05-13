@@ -48,9 +48,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 contextBridge.exposeInMainWorld('showSaveDialog', () => ipcRenderer.invoke('dialog:showSaveDialog'));
 contextBridge.exposeInMainWorld('saveFile', async (file, text) => {
   var path;
-  if (!file)
+  if (!file) {
     path = lastSavedFilePath;
-  else {
+  } else {
     path = file.filePath.toString();
     lastSavedFilePath = path;
   }

@@ -89,7 +89,7 @@ export function luFactor(a: number[][], n: number, ipvt: number[]): boolean {
  * @param ipvt - permutation vector from luFactor()
  * @param b - right-hand side vector (replaced with solution)
  */
-export function luSolve(a: number[][], n: number, ipvt: number[], b: number[]): void {
+export function luSolve(a: number[][], n: number, ipvt: number[], b: number[] | Float64Array): void {
   // Find first nonzero b element
   let i: number;
   for (i = 0; i < n; i++) {
@@ -139,17 +139,23 @@ export function createMatrix(n: number): number[][] {
  */
 export function copyMatrix(src: number[][], dst: number[][], n: number): void {
   for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      dst[i][j] = src[i][j];
-    }
+    copyVector(src[i], dst[i], n);
   }
 }
 
 /**
  * Copy vector src into dst.
  */
-export function copyVector(src: number[], dst: number[], n: number): void {
-  for (let i = 0; i < n; i++) {
-    dst[i] = src[i];
+export function copyVector(src: number[] | Float64Array, dst: number[] | Float64Array, n: number): void {
+  if (src instanceof Float64Array && dst instanceof Float64Array) {
+    if (n === src.length) {
+      dst.set(src);
+    } else {
+      dst.set(src.subarray(0, n));
+    }
+  } else {
+    for (let i = 0; i < n; i++) {
+      dst[i] = src[i];
+    }
   }
 }

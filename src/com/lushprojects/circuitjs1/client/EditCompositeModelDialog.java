@@ -39,10 +39,6 @@ import com.google.gwt.event.dom.client.MouseDownEvent;
 import com.google.gwt.event.dom.client.MouseDownHandler;
 import com.google.gwt.event.dom.client.MouseMoveEvent;
 import com.google.gwt.event.dom.client.MouseMoveHandler;
-import com.google.gwt.event.dom.client.MouseOutEvent;
-import com.google.gwt.event.dom.client.MouseOutHandler;
-import com.google.gwt.event.dom.client.MouseOverEvent;
-import com.google.gwt.event.dom.client.MouseOverHandler;
 import com.google.gwt.event.dom.client.MouseUpEvent;
 import com.google.gwt.event.dom.client.MouseUpHandler;
 import com.google.gwt.canvas.client.Canvas;
@@ -52,7 +48,7 @@ import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.i18n.client.DateTimeFormat;
 
-public class EditCompositeModelDialog extends DialogBox implements MouseDownHandler, MouseMoveHandler, MouseUpHandler, MouseOutHandler, MouseOverHandler {
+public class EditCompositeModelDialog extends DialogBox implements MouseDownHandler, MouseMoveHandler, MouseUpHandler {
 	
 	VerticalPanel vp;
 	boolean error;
@@ -166,8 +162,6 @@ public class EditCompositeModelDialog extends DialogBox implements MouseDownHand
                 canvas.addMouseDownHandler(this);
                 canvas.addMouseUpHandler(this);
                 canvas.addMouseMoveHandler(this);
-                canvas.addMouseOutHandler(this);
-                canvas.addMouseOverHandler(this);
 
                 hp = new HorizontalPanel();
                 hp.setWidth("100%");
@@ -256,16 +250,6 @@ public class EditCompositeModelDialog extends DialogBox implements MouseDownHand
 
 	boolean dragging;
 	
-	public void onMouseOver(MouseOverEvent event) {
-	    // TODO Auto-generated method stub
-	    
-	}
-
-	public void onMouseOut(MouseOutEvent event) {
-	    // TODO Auto-generated method stub
-	    
-	}
-
 	public void onMouseUp(MouseUpEvent event) {
 	    dragging = false;
 	}
