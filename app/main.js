@@ -1,9 +1,7 @@
 const electron = require('electron')
 // Module to control application life.
-const app = electron.app
-// Module to create native browser window.
-const BrowserWindow = electron.BrowserWindow
-const Menu = electron.Menu
+const { app, BrowserWindow, Menu, ipcMain, dialog } = electron;
+const fs = require('fs');
 
 const path = require('path')
 const url = require('url')
@@ -19,7 +17,9 @@ function createWindow () {
   var mainWindow = new BrowserWindow({width: 800, 
     height: 600,
     webPreferences: { nativeWindowOpen: true,
-                      preload: path.join(__dirname, 'preload.js')
+                      preload: path.join(__dirname, 'preload.js'),
+                      nodeIntegration: false,
+                      contextIsolation: true
     }
   })
   windows.push(mainWindow);
@@ -82,3 +82,51 @@ app.on('activate', function () {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+
+const approvedPaths = new Set();
+
+ipcMain.handle('dialog:showSaveDialog', async (event, options) => {
+  const result = await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), options);
+  if (!result.canceled && result.filePath) {
+    approvedPaths.add(path.resolve(result.filePath));
+  }
+  return result;
+});
+
+ipcMain.handle('dialog:showOpenDialog', async (event, options) => {
+  const result = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), options);
+  if (!result.canceled && result.filePaths) {
+    result.filePaths.forEach(fp => approvedPaths.add(path.resolve(fp)));
+  }
+  return result;
+});
+
+ipcMain.handle('file:writeFile', async (event, filePath, text) => {
+  const resolvedPath = path.resolve(filePath);
+  if (!approvedPaths.has(resolvedPath)) {
+    throw new Error('Access denied: Unauthorized file path.');
+  }
+  return new Promise((resolve, reject) => {
+    fs.writeFile(resolvedPath, text, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+});
+
+ipcMain.handle('file:readFile', async (event, filePath) => {
+  const resolvedPath = path.resolve(filePath);
+  if (!approvedPaths.has(resolvedPath)) {
+    throw new Error('Access denied: Unauthorized file path.');
+  }
+  return new Promise((resolve, reject) => {
+    fs.readFile(resolvedPath, 'utf-8', (err, data) => {
+      if (err) reject(err);
+      else resolve(data);
+    });
+  });
+});
+
+ipcMain.on('window:toggleDevTools', (event) => {
+  event.sender.toggleDevTools();
+});
