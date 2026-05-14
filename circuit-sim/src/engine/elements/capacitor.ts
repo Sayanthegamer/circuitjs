@@ -28,8 +28,8 @@ export class CapacitorElement extends CircuitElement {
   }
 
   doStep(stamper: IStamper): void {
-    // A current source of CS_n from n2 to n1
-    stamper.stampCurrentSource(this.nodes[1], this.nodes[0], this.currentSourceValue);
+    // A current source of CS_n from n1 to n2
+    stamper.stampCurrentSource(this.nodes[0], this.nodes[1], this.currentSourceValue);
   }
 
   calculateCurrent(): void {
