@@ -43,6 +43,7 @@ function App() {
   const [probedItems, setProbedItems] = useState<ProbedItem[]>([]);
   const plotterRef = useRef<PlotterHandle>(null);
   const [simTime, setSimTime] = useState(0);
+  const [stopMessage, setStopMessage] = useState<string | null>(null);
   const [stepsPerFrame, setStepsPerFrame] = useState(0);
   const [hoverInfo, setHoverInfo] = useState<string | null>(null);
   const [showValues, setShowValues] = useState(true);
@@ -226,6 +227,7 @@ function App() {
       if (uiUpdateCounter.current % 15 === 0) {
         setSimTime(circuit.t);
         setStepsPerFrame(steps);
+        setStopMessage(circuit.stopMessage);
       }
 
       rafRef.current = requestAnimationFrame(render);
@@ -416,6 +418,16 @@ function App() {
   // --- Keyboard Shortcuts ---
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedId) {
           const circuit = circuitRef.current;
@@ -519,7 +531,7 @@ function App() {
         {/* Status bar */}
         <StatusBar 
           simRunning={simRunning}
-          stopMessage={circuitRef.current.stopMessage}
+          stopMessage={stopMessage}
           simTime={simTime}
           stepsPerFrame={stepsPerFrame}
         />
