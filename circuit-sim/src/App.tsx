@@ -429,6 +429,7 @@ function App() {
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
         if (selectedId) {
           const circuit = circuitRef.current;
           circuit.removeElement(selectedId);
