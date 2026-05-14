@@ -34,11 +34,11 @@ export class DiodeElement extends CircuitElement {
   doStep(stamper: IStamper): void {
     const voltdiff = this.volts[0] - this.volts[1];
 
-    if (Math.abs(voltdiff - this.lastvoltdiff) > 0.001) {
+    this.vdio = this.limitStep(voltdiff, this.lastvoltdiff);
+
+    if (Math.abs(this.vdio - this.lastvoltdiff) > 0.001) {
       stamper.converged = false;
     }
-
-    this.vdio = this.limitStep(voltdiff, this.lastvoltdiff);
     this.lastvoltdiff = this.vdio;
 
     // I = Is * (e^(V/Vt) - 1)
