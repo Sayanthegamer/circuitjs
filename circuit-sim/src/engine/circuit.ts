@@ -36,6 +36,7 @@ export class Circuit implements IStamper {
   circuitRightSide: Float64Array = new Float64Array(0);
   origMatrix: number[][] = [];
   origRightSide: Float64Array = new Float64Array(0);
+  floatingNodes: number[] = [];
   circuitPermute: number[] = [];
   circuitRowInfo: RowInfo[] = [];
   circuitMatrixSize = 0;
@@ -169,6 +170,7 @@ export class Circuit implements IStamper {
     this.stopMessage = null;
     this.nodeList = [];
     this.nodeMap.clear();
+    this.floatingNodes = [];
 
     // Step 1: Wire closure — merge nodes connected by wires
     this.calculateWireClosure();
@@ -380,6 +382,7 @@ export class Circuit implements IStamper {
         if (!closure[i] && !this.nodeList[i].internal) {
           closure[i] = true;
           changed = true;
+          this.floatingNodes.push(i);
           // Will stamp resistor during stampCircuit
           break;
         }
@@ -413,6 +416,11 @@ export class Circuit implements IStamper {
     for (const ce of this.elements) {
       if (ce instanceof WireElement) continue;
       ce.stamp(this);
+    }
+
+    // Stamp floating nodes
+    for (const fn of this.floatingNodes) {
+      this.stampResistor(fn, 0, 1e8);
     }
 
     // Simplify matrix

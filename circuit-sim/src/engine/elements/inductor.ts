@@ -15,7 +15,7 @@ export class InductorElement extends CircuitElement {
 
   stamp(stamper: IStamper): void {
     // Trapezoidal rule equivalent resistance: R_eq = 2 * L / dt
-    this.compResistance = (2 * this.inductance) / stamper.timeStep;
+    this.compResistance = (2.0 * this.inductance) / stamper.timeStep;
     stamper.stampResistor(this.nodes[0], this.nodes[1], this.compResistance);
     stamper.stampRightSide(this.nodes[0]);
     stamper.stampRightSide(this.nodes[1]);
