@@ -66,11 +66,23 @@ export function drawSwitch(
   if (closed) {
     ctx.lineTo(bx2, by2);
   } else {
-    // Open switch: tilted up by 30 degrees
-    const perpX = -ny;
-    const perpY = nx;
-    const tiltOffset = 12; // tilt amount
-    ctx.lineTo(bx2 + perpX * tiltOffset - nx * 2, by2 + perpY * tiltOffset - ny * 2);
+    // Open switch: pivot around (bx1, by1) by 30 degrees (Math.PI / 6)
+    // using the local 2D normal (ny, -nx) to ensure it opens consistently outward.
+    const angle = Math.PI / 6;
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+
+    // The vector from bx1 to bx2 is (gap * nx, gap * ny)
+    const px = gap * nx;
+    const py = gap * ny;
+
+    // Apply 2D rotation matrix:
+    // x' = x*cos(A) - y*sin(A)
+    // y' = x*sin(A) + y*cos(A)
+    const openX = bx1 + px * cosA - py * sinA;
+    const openY = by1 + px * sinA + py * cosA;
+
+    ctx.lineTo(openX, openY);
   }
   ctx.stroke();
 
