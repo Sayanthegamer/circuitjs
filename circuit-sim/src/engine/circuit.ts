@@ -12,7 +12,7 @@ import { luFactor, luSolve, createMatrix, copyMatrix, copyVector } from './matri
 import { WireElement } from './elements/wire';
 
 /** Point equality for node mapping */
-function ptKey(p: Point): string { return `${p.x},${p.y}`; }
+function ptKey(p: Point): string { return `${Math.round(p.x)},${Math.round(p.y)}`; }
 
 /** Wire info for calculating wire currents */
 interface WireInfo {
@@ -224,8 +224,14 @@ export class Circuit implements IStamper {
 
       if (cn && cn2) {
         // Merge: point all cn2 refs to cn
-        for (const [key, entry] of this.nodeMap) {
-          if (entry === cn2) this.nodeMap.set(key, cn);
+        if (cn !== cn2) {
+          const keysToUpdate: string[] = [];
+          for (const [key, entry] of this.nodeMap.entries()) {
+            if (entry === cn2) keysToUpdate.push(key);
+          }
+          for (const key of keysToUpdate) {
+            this.nodeMap.set(key, cn);
+          }
         }
       } else if (cn) {
         this.nodeMap.set(k1, cn);
