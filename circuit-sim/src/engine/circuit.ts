@@ -55,6 +55,13 @@ export class Circuit implements IStamper {
   private wireInfoList: WireInfo[] = [];
   private nodeMap = new Map<string, { node: number }>();
 
+  // Wire traversal state for current calculation
+  private _wireNodesData: Map<string, {
+    wires: { wire: WireElement, isForward: boolean, isChord: boolean }[];
+    contributors: number[];
+  }> = new Map();
+  private _wireForest: { node: string, edgeToParent: { wire: WireElement, isForward: boolean } | null, children: any[] }[] = [];
+
   // State
   stopMessage: string | null = null;
   converged = false;
@@ -336,7 +343,7 @@ export class Circuit implements IStamper {
     // Phase 2: Complete Spanning Tree implementation for wire subgraphs
     const wireNodes = new Map<string, {
       wires: { wire: WireElement, isForward: boolean, isChord: boolean }[];
-      nonWireCurrents: () => number;
+      contributors: number[];
     }>();
 
     // Reset wire status
@@ -351,10 +358,10 @@ export class Circuit implements IStamper {
       const k1 = ptKey(w.getPost(1));
 
       if (!wireNodes.has(k0)) {
-        wireNodes.set(k0, { wires: [], nonWireCurrents: () => 0 });
+        wireNodes.set(k0, { wires: [], contributors: [] });
       }
       if (!wireNodes.has(k1)) {
-        wireNodes.set(k1, { wires: [], nonWireCurrents: () => 0 });
+        wireNodes.set(k1, { wires: [], contributors: [] });
       }
 
       wireNodes.get(k0)!.wires.push({ wire: w, isForward: true, isChord: false });
@@ -369,50 +376,102 @@ export class Circuit implements IStamper {
         const k = ptKey(pt);
         if (wireNodes.has(k)) {
           const nodeData = wireNodes.get(k)!;
-          const oldFn = nodeData.nonWireCurrents;
-          nodeData.nonWireCurrents = () => oldFn() + ce.getCurrentIntoNode(n);
+          nodeData.contributors.push(ce.getCurrentIntoNode(n));
         }
       }
     }
 
-    // DFS to find Spanning Tree and identify chord edges
+    // DFS to find Spanning Tree and identify chord edges (iterative version to avoid stack overflow)
     const visitedNodes = new Set<string>();
     const dfsForest: { node: string, edgeToParent: { wire: WireElement, isForward: boolean } | null, children: any[] }[] = [];
 
-    const buildDFS = (nodeKey: string, parentEdge: { wire: WireElement, isForward: boolean } | null) => {
-      visitedNodes.add(nodeKey);
-      const nodeData = wireNodes.get(nodeKey)!;
-      const treeNode = { node: nodeKey, edgeToParent: parentEdge, children: [] as any[] };
-
-      for (const edge of nodeData.wires) {
-        if (parentEdge && edge.wire === parentEdge.wire) continue;
-
-        const nextKey = edge.isForward ? ptKey(edge.wire.getPost(1)) : ptKey(edge.wire.getPost(0));
-
-        if (visitedNodes.has(nextKey)) {
-          // It's a back-edge (chord). Mark it so it gets 0 current.
-          edge.isChord = true;
-          // Find the corresponding edge in the destination node and mark it too
-          const destNode = wireNodes.get(nextKey)!;
-          const revEdge = destNode.wires.find(w => w.wire === edge.wire);
-          if (revEdge) revEdge.isChord = true;
-        } else {
-          // It's a tree edge
-          treeNode.children.push(buildDFS(nextKey, { wire: edge.wire, isForward: edge.isForward }));
-        }
-      }
-      return treeNode;
+    // Stack-based DFS to avoid recursion
+    type DFSFrame = {
+      nodeKey: string;
+      parentEdge: { wire: WireElement, isForward: boolean } | null;
+      treeNode: { node: string, edgeToParent: { wire: WireElement, isForward: boolean } | null, children: any[] };
+      edgeIndex: number;
+      parentFrame: DFSFrame | null;
     };
 
-    for (const nodeKey of wireNodes.keys()) {
-      if (!visitedNodes.has(nodeKey)) {
-        dfsForest.push(buildDFS(nodeKey, null));
+    for (const startNodeKey of wireNodes.keys()) {
+      if (visitedNodes.has(startNodeKey)) continue;
+
+      const stack: DFSFrame[] = [];
+      const rootTreeNode = { node: startNodeKey, edgeToParent: null, children: [] as any[] };
+      stack.push({
+        nodeKey: startNodeKey,
+        parentEdge: null,
+        treeNode: rootTreeNode,
+        edgeIndex: 0,
+        parentFrame: null
+      });
+
+      while (stack.length > 0) {
+        const frame = stack[stack.length - 1];
+
+        // Mark as visited when we first enter
+        if (frame.edgeIndex === 0) {
+          visitedNodes.add(frame.nodeKey);
+        }
+
+        const nodeData = wireNodes.get(frame.nodeKey)!;
+        const edges = nodeData.wires;
+
+        // Find next unprocessed edge
+        let foundUnvisitedChild = false;
+        while (frame.edgeIndex < edges.length) {
+          const edge = edges[frame.edgeIndex];
+          frame.edgeIndex++;
+
+          // Skip the edge we came from
+          if (frame.parentEdge && edge.wire === frame.parentEdge.wire) {
+            continue;
+          }
+
+          const nextKey = edge.isForward ? ptKey(edge.wire.getPost(1)) : ptKey(edge.wire.getPost(0));
+
+          if (visitedNodes.has(nextKey)) {
+            // It's a back-edge (chord). Mark it so it gets 0 current.
+            edge.isChord = true;
+            // Find the corresponding edge in the destination node and mark it too
+            const destNode = wireNodes.get(nextKey)!;
+            const revEdge = destNode.wires.find(w => w.wire === edge.wire);
+            if (revEdge) revEdge.isChord = true;
+          } else {
+            // It's a tree edge - create child and push to stack
+            const childTreeNode = { node: nextKey, edgeToParent: { wire: edge.wire, isForward: edge.isForward }, children: [] as any[] };
+            stack.push({
+              nodeKey: nextKey,
+              parentEdge: { wire: edge.wire, isForward: edge.isForward },
+              treeNode: childTreeNode,
+              edgeIndex: 0,
+              parentFrame: frame
+            });
+            foundUnvisitedChild = true;
+            break;
+          }
+        }
+
+        // If we found an unvisited child, continue with it
+        if (foundUnvisitedChild) {
+          continue;
+        }
+
+        // All edges processed - pop this frame and attach to parent
+        stack.pop();
+        if (frame.parentFrame) {
+          frame.parentFrame.treeNode.children.push(frame.treeNode);
+        } else {
+          // Root of a tree
+          dfsForest.push(frame.treeNode);
+        }
       }
     }
 
     // Save the traversal data for calcWireCurrents
-    (this as any)._wireForest = dfsForest;
-    (this as any)._wireNodesData = wireNodes;
+    this._wireForest = dfsForest;
+    this._wireNodesData = wireNodes;
   }
 
 
@@ -704,13 +763,14 @@ export class Circuit implements IStamper {
   }
 
   private calcWireCurrents(): void {
-    if (!(this as any)._wireForest) return;
-    const forest = (this as any)._wireForest;
-    const wireNodesData = (this as any)._wireNodesData as Map<string, any>;
+    if (!this._wireForest) return;
+    const forest = this._wireForest;
+    const wireNodesData = this._wireNodesData;
 
     // Post-order traversal to compute currents from leaves up to roots
     const computeCurrents = (treeNode: any): number => {
-      let totalCurrent = wireNodesData.get(treeNode.node)!.nonWireCurrents();
+      const nodeData = wireNodesData.get(treeNode.node)!;
+      let totalCurrent = nodeData.contributors.reduce((sum, contrib) => sum + contrib, 0);
 
       for (const child of treeNode.children) {
         const childCurrent = computeCurrents(child);
