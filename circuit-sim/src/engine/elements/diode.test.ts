@@ -17,8 +17,9 @@ describe('DiodeElement', () => {
       stampVoltageSource: vi.fn(),
       updateVoltageSource: vi.fn(),
       nodeCount: 0,
-      converged: true
-    };
+      converged: true,
+  subIterations: 0
+};
 
     // Simulate an overshoot that should limit to a stable value
     // vold = 0.8, vnew = 10.
@@ -48,8 +49,9 @@ describe('DiodeElement', () => {
       stampVoltageSource: vi.fn(),
       updateVoltageSource: vi.fn(),
       nodeCount: 0,
-      converged: true
-    };
+      converged: true,
+  subIterations: 0
+};
 
     // vold = 0.8, vnew = 0.8005
     diode.lastvoltdiff = 0.8;
@@ -78,8 +80,9 @@ describe('DiodeElement', () => {
       stampVoltageSource: vi.fn(),
       updateVoltageSource: vi.fn(),
       nodeCount: 0,
-      converged: true
-    };
+      converged: true,
+  subIterations: 0
+};
 
     diode.lastvoltdiff = 0;
     diode.setNodeVoltage(0, 0);

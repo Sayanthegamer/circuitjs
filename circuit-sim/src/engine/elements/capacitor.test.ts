@@ -23,8 +23,9 @@ describe('CapacitorElement', () => {
       stampVoltageSource: vi.fn(),
       updateVoltageSource: vi.fn(),
       nodeCount: 0,
-      converged: true
-    };
+      converged: true,
+  subIterations: 0
+};
 
     // First, stamp to set compResistance
     cap.stamp(stamper);
@@ -69,8 +70,9 @@ describe('CapacitorElement', () => {
       stampVoltageSource: vi.fn(),
       updateVoltageSource: vi.fn(),
       nodeCount: 0,
-      converged: true
-    };
+      converged: true,
+  subIterations: 0
+};
     cap.stamp(stamper);
     cap.startIteration();
     cap.doStep(stamper);

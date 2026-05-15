@@ -58,6 +58,7 @@ export class Circuit implements IStamper {
   // State
   stopMessage: string | null = null;
   converged = false;
+  subIterations = 0;
   isBackwardEuler = true;
 
   get nodeCount(): number { return this.nodeList.length; }
@@ -611,9 +612,10 @@ export class Circuit implements IStamper {
     // Start iteration for all elements
     for (const ce of this.elements) ce.startIteration();
 
-    const maxSubIter = this.circuitNonLinear ? 100 : 1;
+    const maxSubIter = this.circuitNonLinear ? 5000 : 1;
 
     for (let subiter = 0; subiter < maxSubIter; subiter++) {
+      this.subIterations = subiter;
       this.converged = true;
 
       // Reset right side
@@ -686,6 +688,7 @@ export class Circuit implements IStamper {
 
       if (isNaN(res)) {
         this.converged = false;
+        this.subIterations = 0;
         break;
       }
 
