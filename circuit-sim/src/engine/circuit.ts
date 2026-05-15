@@ -611,7 +611,7 @@ export class Circuit implements IStamper {
     // Start iteration for all elements
     for (const ce of this.elements) ce.startIteration();
 
-    const maxSubIter = this.circuitNonLinear ? 5000 : 1;
+    const maxSubIter = this.circuitNonLinear ? 100 : 1;
 
     for (let subiter = 0; subiter < maxSubIter; subiter++) {
       this.converged = true;
