@@ -26,26 +26,30 @@ export class DiodeElement extends CircuitElement {
   limitStep(vnew: number, vold: number): number {
     let arg: number;
     let vn = vnew;
+    const vcrit = this.vt * Math.log(this.vt / (Math.SQRT2 * this.leakage));
 
-    // PNJLIM-style stepping (like SPICE)
-    if (vnew > 0.1 || vold > 0.1) {
-        const vcrit = this.vt * Math.log(this.vt / (Math.SQRT2 * this.leakage));
-
-        if (vold > 0 && vnew > 0) {
-            arg = 1 + (vnew - vold) / this.vt;
-            if (arg > 0) {
-                vn = vold + this.vt * Math.log(arg);
-            } else if (vnew > vold) {
-                vn = vcrit;
-            }
-        } else if (vnew > vcrit) {
-            vn = vcrit;
+    // check new voltage; has current changed by factor of e^2?
+    if (vnew > vcrit && Math.abs(vnew - vold) > (this.vt + this.vt)) {
+      if (vold > 0) {
+        arg = 1 + (vnew - vold) / this.vt;
+        if (arg > 0) {
+          // adjust vnew so that the current is the same
+          // as in linearized model from previous iteration.
+          vn = vold + this.vt * Math.log(arg);
+        } else {
+          vn = vcrit;
         }
+      } else {
+        // adjust vnew so that the current is the same
+        // as in linearized model from previous iteration.
+        vn = this.vt * Math.log(vnew / this.vt);
+      }
     }
 
-    // Still keep a basic limit to prevent wild swings
-    if (vn > vold + 0.5) return vold + 0.5;
-    if (vn < vold - 0.5) return vold - 0.5;
+    // Still keep a basic limit to prevent wild swings (like SPICE PNJLIM basic check)
+    // Actually Java CirSim doesn't do this hard clamping, but it's safe to keep a looser one or omit.
+    // Let's stick closer to the Java original which just uses the logic above.
+    // But since we removed the clamping, let's just return vn.
     return vn;
   }
 
@@ -69,6 +73,29 @@ export class DiodeElement extends CircuitElement {
     const expTerm = Math.exp(vclamp / this.vt);
     let geq = (this.leakage / this.vt) * expTerm;
     
+    // To prevent a possible singular matrix or other numeric issues, put a tiny conductance
+    // in parallel with each P-N junction.
+    let gmin = this.leakage * 0.01;
+
+    // Dynamic gmin heuristic for convergence assistance:
+    // When Newton-Raphson struggles (>100 iterations), gradually increase parallel conductance
+    // to improve matrix conditioning and help the solver converge.
+    if (stamper.subIterations > 100) {
+        // Exponential growth formula: gmin = exp(-9*ln(10)*(1-subIterations/3000))
+        // - Starts at ~1e-9 S when subIterations = 100
+        // - The factor -9*ln(10) ≈ -20.7 sets the base scale (starts at 1e-9)
+        // - The ratio (1-subIterations/3000) controls growth rate:
+        //   * At iter 100: (1-100/3000) ≈ 0.967 → gmin ≈ 1e-9 S
+        //   * At iter 500: (1-500/3000) ≈ 0.833 → gmin ≈ 1e-8 S
+        //   * At iter 1000: (1-1000/3000) ≈ 0.667 → gmin ≈ 1e-6 S
+        //   * At iter 3000: (1-3000/3000) = 0 → gmin ≈ 1 S (before cap)
+        // - Upper bound of 0.1 S prevents excessive damping that would distort results
+        gmin = Math.exp(-9*Math.log(10)*(1-stamper.subIterations/3000.));
+        if (gmin > .1)
+            gmin = .1;  // Cap at 0.1 S to preserve circuit behavior
+    }
+    geq += gmin;
+
     // Add minimum conductance to avoid singular matrix
     if (geq < 1e-12) geq = 1e-12;
 

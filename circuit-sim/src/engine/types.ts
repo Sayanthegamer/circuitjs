@@ -146,6 +146,7 @@ export interface IStamper {
   nodeCount: number;
   timeStep: number;
   converged: boolean;
+  subIterations: number;
 }
 
 // ============================================================
