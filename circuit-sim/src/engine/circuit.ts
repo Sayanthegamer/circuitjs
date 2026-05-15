@@ -688,7 +688,9 @@ export class Circuit implements IStamper {
 
       if (isNaN(res)) {
         this.converged = false;
-        this.subIterations = 0;
+        // Keep subIterations at its actual value for debugging/telemetry
+        // rather than zeroing it out - this preserves the iteration count
+        // where NaN was detected
         break;
       }
 

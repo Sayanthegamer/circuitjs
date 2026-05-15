@@ -44,9 +44,6 @@ export class DiodeElement extends CircuitElement {
         // as in linearized model from previous iteration.
         vn = this.vt * Math.log(vnew / this.vt);
       }
-    } else if (vnew < 0) {
-        // We do not have Zener breakdown fully modeled here with offset,
-        // but handle negative swings gracefully if needed.
     }
 
     // Still keep a basic limit to prevent wild swings (like SPICE PNJLIM basic check)
@@ -79,12 +76,23 @@ export class DiodeElement extends CircuitElement {
     // To prevent a possible singular matrix or other numeric issues, put a tiny conductance
     // in parallel with each P-N junction.
     let gmin = this.leakage * 0.01;
+
+    // Dynamic gmin heuristic for convergence assistance:
+    // When Newton-Raphson struggles (>100 iterations), gradually increase parallel conductance
+    // to improve matrix conditioning and help the solver converge.
     if (stamper.subIterations > 100) {
-        // if we have trouble converging, put a conductance in parallel with the diode.
-        // Gradually increase the conductance value for each iteration.
+        // Exponential growth formula: gmin = exp(-9*ln(10)*(1-subIterations/3000))
+        // - Starts at ~1e-9 S when subIterations = 100
+        // - The factor -9*ln(10) ≈ -20.7 sets the base scale (starts at 1e-9)
+        // - The ratio (1-subIterations/3000) controls growth rate:
+        //   * At iter 100: (1-100/3000) ≈ 0.967 → gmin ≈ 1e-9 S
+        //   * At iter 500: (1-500/3000) ≈ 0.833 → gmin ≈ 1e-8 S
+        //   * At iter 1000: (1-1000/3000) ≈ 0.667 → gmin ≈ 1e-6 S
+        //   * At iter 3000: (1-3000/3000) = 0 → gmin ≈ 1 S (before cap)
+        // - Upper bound of 0.1 S prevents excessive damping that would distort results
         gmin = Math.exp(-9*Math.log(10)*(1-stamper.subIterations/3000.));
         if (gmin > .1)
-            gmin = .1;
+            gmin = .1;  // Cap at 0.1 S to preserve circuit behavior
     }
     geq += gmin;
 
