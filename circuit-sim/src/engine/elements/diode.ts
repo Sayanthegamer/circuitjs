@@ -24,11 +24,29 @@ export class DiodeElement extends CircuitElement {
   }
 
   limitStep(vnew: number, vold: number): number {
-    const maxStep = 0.05;
-    const diff = vnew - vold;
-    if (diff > maxStep) return vold + maxStep;
-    if (diff < -maxStep) return vold - maxStep;
-    return vnew;
+    let arg: number;
+    let vn = vnew;
+
+    // PNJLIM-style stepping (like SPICE)
+    if (vnew > 0.1 || vold > 0.1) {
+        const vcrit = this.vt * Math.log(this.vt / (Math.SQRT2 * this.leakage));
+
+        if (vold > 0 && vnew > 0) {
+            arg = 1 + (vnew - vold) / this.vt;
+            if (arg > 0) {
+                vn = vold + this.vt * Math.log(arg);
+            } else if (vnew > vold) {
+                vn = vcrit;
+            }
+        } else if (vnew > vcrit) {
+            vn = vcrit;
+        }
+    }
+
+    // Still keep a basic limit to prevent wild swings
+    if (vn > vold + 0.5) return vold + 0.5;
+    if (vn < vold - 0.5) return vold - 0.5;
+    return vn;
   }
 
   doStep(stamper: IStamper): void {
@@ -46,7 +64,7 @@ export class DiodeElement extends CircuitElement {
     
     // To avoid infinity, clamp vdio to reasonable bounds
     let vclamp = this.vdio;
-    if (vclamp > 5) vclamp = 5; 
+    if (vclamp > 10) vclamp = 10;
     
     const expTerm = Math.exp(vclamp / this.vt);
     let geq = (this.leakage / this.vt) * expTerm;
@@ -64,7 +82,7 @@ export class DiodeElement extends CircuitElement {
   calculateCurrent(): void {
     const voltdiff = this.volts[0] - this.volts[1];
     let vclamp = voltdiff;
-    if (vclamp > 5) vclamp = 5;
+    if (vclamp > 10) vclamp = 10;
     this.current = this.leakage * (Math.exp(vclamp / this.vt) - 1);
   }
 }
