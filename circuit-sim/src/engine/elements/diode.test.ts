@@ -30,6 +30,8 @@ describe('DiodeElement', () => {
 
     // vnew=10 > vold+0.5 -> 1.3 is handled by PNJLIM now, expect different value but still false convergence
     expect(stamper.converged).toBe(false);
+    expect(diode.vdio).toBeGreaterThan(0.5);
+    expect(diode.vdio).toBeLessThan(2.0);
   });
 
   it('converges successfully when difference is small', () => {
@@ -58,6 +60,8 @@ describe('DiodeElement', () => {
 
     // Should converge
     expect(stamper.converged).toBe(true);
+    expect(diode.vdio).toBeGreaterThan(0.7);
+    expect(diode.vdio).toBeLessThan(0.9);
   });
 
   it('handles zero-state correctly', () => {

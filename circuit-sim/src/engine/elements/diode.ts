@@ -35,7 +35,7 @@ export class DiodeElement extends CircuitElement {
             arg = 1 + (vnew - vold) / this.vt;
             if (arg > 0) {
                 vn = vold + this.vt * Math.log(arg);
-            } else {
+            } else if (vnew > vold) {
                 vn = vcrit;
             }
         } else if (vnew > vcrit) {
