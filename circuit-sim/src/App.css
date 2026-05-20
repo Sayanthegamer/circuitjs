@@ -378,3 +378,8 @@ html, body, #root {
 .readout-value.current {
   color: rgba(255, 238, 100, 0.85);
 }
+
+/* ---- Fix Browser Touch Hijacking ---- */
+.circuit-canvas {
+  touch-action: none;
+}

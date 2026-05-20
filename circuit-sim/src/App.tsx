@@ -291,8 +291,13 @@ function App() {
       return;
     }
 
+    // Force clear panning if it somehow got stuck before resetting it on this pointer down
+    if (cameraRef.current.panning) {
+      cameraRef.current.endPan();
+    }
+
     // Left-click or single touch
-    if (e.button === 0) {
+    if (e.pointerType === 'mouse' ? e.button === 0 : e.isPrimary) {
       const world = getWorldPos(e);
       const snapped = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
 
@@ -315,12 +320,8 @@ function App() {
         } else {
           setSelectedId(null);
           // Start panning on empty space with select tool
-          if (e.pointerType === 'mouse') {
-            cameraRef.current.startPan(e.clientX - rect.left, e.clientY - rect.top);
-          } else {
-             // on touch we don't pan on single touch down unless maybe we add a pan tool
-             cameraRef.current.startPan(e.clientX - rect.left, e.clientY - rect.top);
-          }
+          // Always start panning with fresh coordinates
+          cameraRef.current.startPan(e.clientX - rect.left, e.clientY - rect.top);
         }
       } else if (tool === 'ground') {
         // Ground is single-click placement
@@ -387,7 +388,10 @@ function App() {
 
     // Panning
     if (cameraRef.current.panning) {
-      cameraRef.current.updatePan(e.clientX - rect.left, e.clientY - rect.top);
+      // Don't process single-pointer pan if we have more than 1 pointer to avoid wild jumps
+      if (activePointers.current.size === 1 || e.pointerType === 'mouse') {
+        cameraRef.current.updatePan(e.clientX - rect.left, e.clientY - rect.top);
+      }
       return;
     }
 
@@ -438,10 +442,24 @@ function App() {
   }, [placing, getWorldPos, tool]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    // End panning
-    if (e.button === 1 || e.button === 2) {
+    // Remove pointer from tracking cache
+    activePointers.current.delete(e.pointerId);
+
+    // If we drop below 2 fingers, cancel the pinch-to-zoom state
+    if (activePointers.current.size < 2) {
+      lastPinchDist.current = null;
+    }
+
+    // End panning if we drop below 2 fingers on touch, or middle/right click ends
+    if (e.pointerType === 'mouse' && (e.button === 1 || e.button === 2)) {
       cameraRef.current.endPan();
       return;
+    } else if (activePointers.current.size === 0 && cameraRef.current.panning) {
+      cameraRef.current.endPan();
+    } else if (activePointers.current.size === 1 && cameraRef.current.panning) {
+      // If we dropped from 2 fingers to 1 finger, we must reset the pan starting coordinate
+      // or end panning entirely to prevent a jump. Let's just end panning. The user can tap again to pan.
+      cameraRef.current.endPan();
     }
 
     // Finish placing element
@@ -609,6 +627,7 @@ function App() {
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
+            onPointerOut={handlePointerUp}
             onWheel={handleWheel}
             onContextMenu={handleContextMenu}
             style={{ cursor: tool === 'select' ? ( cameraRef.current.panning ? 'grabbing' : 'default') : 'crosshair' }}
