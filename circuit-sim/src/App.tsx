@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs, react-hooks/immutability */
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { Circuit, ResistorElement, VoltageSourceElement, WireElement, GroundElement, CapacitorElement, InductorElement, SwitchElement, DiodeElement, LEDElement } from './engine';
 import type { ICircuitElement } from './engine/types';
@@ -34,6 +35,8 @@ function App() {
   const showValuesRef = useRef(true);
   const selectedIdRef = useRef<string | null>(null);
   const placingRef = useRef<PlacingState | null>(null);
+  const activePointers = useRef(new Map<number, React.PointerEvent>());
+  const lastPinchDist = useRef<number | null>(null);
   const uiUpdateCounter = useRef(0);
 
   const [tool, setTool] = useState<ToolMode>('select');
@@ -238,7 +241,7 @@ function App() {
   }, [probedItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Mouse Handlers ---
-  const getWorldPos = useCallback((e: React.MouseEvent) => {
+  const getWorldPos = useCallback((e: React.PointerEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -248,19 +251,47 @@ function App() {
     );
   }, []);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    // Capture pointer to canvas
+    canvas.setPointerCapture(e.pointerId);
+    activePointers.current.set(e.pointerId, e);
+
     const rect = canvas.getBoundingClientRect();
 
+    if (activePointers.current.size === 2) {
+      // Start two-finger gesture
+      const pointers = Array.from(activePointers.current.values());
+      const p1 = pointers[0];
+      const p2 = pointers[1];
+      const midX = (p1.clientX + p2.clientX) / 2 - rect.left;
+      const midY = (p1.clientY + p2.clientY) / 2 - rect.top;
+
+      cameraRef.current.startPan(midX, midY);
+
+      // Initialize pinch distance
+      const dx = p1.clientX - p2.clientX;
+      const dy = p1.clientY - p2.clientY;
+      lastPinchDist.current = Math.hypot(dx, dy);
+
+      // Cancel any placement
+      setPlacing(null);
+      return;
+    } else if (activePointers.current.size > 2) {
+       return; // Ignore more than 2 fingers
+    }
+
+    // Single pointer down (mouse or 1 finger)
     // Middle-click or right-click: start panning
-    if (e.button === 1 || e.button === 2) {
+    if (e.pointerType === 'mouse' && (e.button === 1 || e.button === 2)) {
       e.preventDefault();
       cameraRef.current.startPan(e.clientX - rect.left, e.clientY - rect.top);
       return;
     }
 
-    // Left-click
+    // Left-click or single touch
     if (e.button === 0) {
       const world = getWorldPos(e);
       const snapped = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
@@ -278,7 +309,19 @@ function App() {
             found = elm;
           }
         }
-        setSelectedId(found ? found.id : null);
+
+        if (found) {
+          setSelectedId(found.id);
+        } else {
+          setSelectedId(null);
+          // Start panning on empty space with select tool
+          if (e.pointerType === 'mouse') {
+            cameraRef.current.startPan(e.clientX - rect.left, e.clientY - rect.top);
+          } else {
+             // on touch we don't pan on single touch down unless maybe we add a pan tool
+             cameraRef.current.startPan(e.clientX - rect.left, e.clientY - rect.top);
+          }
+        }
       } else if (tool === 'ground') {
         // Ground is single-click placement
         const circuit = circuitRef.current;
@@ -299,10 +342,48 @@ function App() {
     }
   }, [tool, getWorldPos]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
+
+    if (activePointers.current.has(e.pointerId)) {
+      activePointers.current.set(e.pointerId, e);
+    }
+
+    if (activePointers.current.size === 2) {
+      // Two-finger Pan & Zoom
+      const pointers = Array.from(activePointers.current.values());
+      const p1 = pointers[0];
+      const p2 = pointers[1];
+
+      const midX = (p1.clientX + p2.clientX) / 2 - rect.left;
+      const midY = (p1.clientY + p2.clientY) / 2 - rect.top;
+
+      const dx = p1.clientX - p2.clientX;
+      const dy = p1.clientY - p2.clientY;
+      const dist = Math.hypot(dx, dy);
+
+      if (lastPinchDist.current !== null) {
+         const delta = dist - lastPinchDist.current;
+         if (Math.abs(delta) > 0.5) { // small threshold
+             // call handleTouchZoom
+             if (typeof (cameraRef.current as any).handleTouchZoom === 'function') {
+                 (cameraRef.current as any).handleTouchZoom(delta, midX, midY);
+             }
+         }
+      }
+
+      lastPinchDist.current = dist;
+
+      if (cameraRef.current.panning) {
+          cameraRef.current.updatePan(midX, midY);
+      }
+
+      return;
+    }
+
+    // Single pointer move
 
     // Panning
     if (cameraRef.current.panning) {
@@ -313,7 +394,21 @@ function App() {
     // Placing element
     if (placing && placing.phase === 'second') {
       const world = getWorldPos(e);
-      const snapped = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
+      let yOffset = 0;
+      // Fat finger offset on coarse pointer devices
+      if (window.matchMedia('(pointer: coarse)').matches) {
+          yOffset = -40; // pixel offset
+      }
+      // re-calculate world position if there is an offset
+      let finalWorld = world;
+      if (yOffset !== 0) {
+          finalWorld = cameraRef.current.screenToWorld(
+              e.clientX - rect.left,
+              e.clientY - rect.top + yOffset
+          );
+      }
+
+      const snapped = { x: snapToGrid(finalWorld.x), y: snapToGrid(finalWorld.y) };
       setPlacing(prev => prev ? { ...prev, x2: snapped.x, y2: snapped.y } : null);
       return;
     }
@@ -342,7 +437,7 @@ function App() {
     }
   }, [placing, getWorldPos, tool]);
 
-  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
     // End panning
     if (e.button === 1 || e.button === 2) {
       cameraRef.current.endPan();
@@ -510,12 +605,13 @@ function App() {
           <canvas
             ref={canvasRef}
             className="circuit-canvas"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
             onWheel={handleWheel}
             onContextMenu={handleContextMenu}
-            style={{ cursor: tool === 'select' ? (cameraRef.current.panning ? 'grabbing' : 'default') : 'crosshair' }}
+            style={{ cursor: tool === 'select' ? ( cameraRef.current.panning ? 'grabbing' : 'default') : 'crosshair' }}
           />
 
           {/* Hover tooltip */}

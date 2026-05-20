@@ -1,4 +1,5 @@
-import { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, useRef, useImperativeHandle, forwardRef, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export interface ProbedItem {
   id: string;
@@ -19,6 +20,7 @@ export interface PlotterHandle {
 const MAX_POINTS = 500;
 
 export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) => {
+  const [isMinimized, setIsMinimized] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Buffers
@@ -159,11 +161,14 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
   }, [items]);
 
   return (
-    <div className="plotter-wrapper">
-      <div className="plotter-header">
+    <div className={`plotter-panel ${isMinimized ? 'minimized' : ''}`}>
+      <div className="plotter-header" onClick={() => setIsMinimized(!isMinimized)}>
         <span className="plotter-title">Oscilloscope</span>
+        <button className="minimize-btn" aria-label="Toggle plotter">
+          {isMinimized ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+        </button>
       </div>
-      <canvas ref={canvasRef} className="plotter-canvas" />
+      <canvas ref={canvasRef} className="plotter-canvas" style={{ display: isMinimized ? 'none' : 'block' }} />
     </div>
   );
 });

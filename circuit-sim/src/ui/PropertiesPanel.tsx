@@ -9,13 +9,17 @@ interface PropertiesPanelProps {
   handlePropChange: (prop: string, value: number) => void;
   probedItems: ProbedItem[];
   setProbedItems: (items: ProbedItem[]) => void;
+  onClose?: () => void;
 }
+
+import { X } from 'lucide-react';
 
 export function PropertiesPanel({ 
   selectedElm, 
   handlePropChange, 
   probedItems, 
-  setProbedItems 
+  setProbedItems,
+  onClose
 }: PropertiesPanelProps) {
   if (!selectedElm) return null;
 
@@ -39,7 +43,12 @@ export function PropertiesPanel({
   return (
     <div className="props-panel">
       <div className="props-title">
-        {selectedElm.type.charAt(0).toUpperCase() + selectedElm.type.slice(1)} Properties
+        <span>{selectedElm.type.charAt(0).toUpperCase() + selectedElm.type.slice(1)} Properties</span>
+        {onClose && (
+          <button className="props-close-btn" onClick={onClose} aria-label="Close properties">
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       {selectedElm.type === 'resistor' && (

@@ -55,6 +55,24 @@ export class Camera {
   }
 
   /** Start panning */
+
+  /** Handle pinch-to-zoom for touch devices */
+  handleTouchZoom(deltaDist: number, midX: number, midY: number): void {
+    const worldBefore = this.screenToWorld(midX, midY);
+
+    // Convert distance delta to a zoom factor.
+    // Small delta -> close to 1. Large delta -> larger factor.
+    // E.g., dist goes 100 -> 110 (delta 10), factor = 1 + (10 / 100) = 1.1 maybe?
+    // Let's use a simple multiplier based on the delta.
+    const factor = 1 + (deltaDist * 0.005);
+
+    this.targetZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.targetZoom * factor));
+
+    // Adjust position so zoom centers on the midpoint between fingers
+    this.targetX = midX - worldBefore.x * this.targetZoom;
+    this.targetY = midY - worldBefore.y * this.targetZoom;
+  }
+
   startPan(screenX: number, screenY: number): void {
     this.isPanning = true;
     this.panStartX = screenX;
