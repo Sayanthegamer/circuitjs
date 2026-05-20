@@ -454,6 +454,7 @@
   /* ---- Properties Bottom Sheet ---- */
   .props-panel {
     position: fixed;
+    top: auto;
     bottom: 70px; /* Just above component palette */
     left: 0;
     right: 0;
