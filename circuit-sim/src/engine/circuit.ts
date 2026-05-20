@@ -74,10 +74,15 @@ export class Circuit implements IStamper {
         i = this.circuitRowInfo[i - 1].mapRow;
         const ri = this.circuitRowInfo[j - 1];
         if (ri.type === RowInfoType.ROW_CONST) {
-          this.circuitRightSide[i] -= x * ri.value;
+          // ADDED: Prevent writing to dropped rows (i == -1)
+          if (i >= 0) {
+            this.circuitRightSide[i] -= x * ri.value;
+          }
           return;
         }
         j = ri.mapCol;
+        // ADDED: Prevent accessing undefined rows in the matrix
+        if (i < 0) return;
       } else {
         i--;
         j--;
@@ -95,6 +100,8 @@ export class Circuit implements IStamper {
       }
       if (this.circuitNeedsMap) {
         i = this.circuitRowInfo[i - 1].mapRow;
+        // ADDED: Prevent writing to dropped rows
+        if (i < 0) return;
       } else {
         i--;
       }
