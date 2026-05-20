@@ -90,31 +90,33 @@ export function luFactor(a: number[][], n: number, ipvt: number[]): boolean {
  * @param b - right-hand side vector (replaced with solution)
  */
 export function luSolve(a: number[][], n: number, ipvt: number[], b: number[] | Float64Array): void {
-  // Find first nonzero b element
-  let i: number;
-  for (i = 0; i < n; i++) {
+  // Step 1: Permute b
+  for (let i = 0; i < n; i++) {
     const row = ipvt[i];
-    const swap = b[row];
-    b[row] = b[i];
-    b[i] = swap;
-    if (swap !== 0) break;
+    if (row !== i) {
+      const swap = b[row];
+      b[row] = b[i];
+      b[i] = swap;
+    }
   }
 
-  const bi = i++;
+  // Step 2: Forward substitution using lower triangular matrix
+  // Find first nonzero b element
+  let bi = 0;
+  while (bi < n && b[bi] === 0) {
+    bi++;
+  }
 
-  // Forward substitution using lower triangular matrix
-  for (; i < n; i++) {
-    const row = ipvt[i];
-    let tot = b[row];
-    b[row] = b[i];
+  for (let i = bi + 1; i < n; i++) {
+    let tot = b[i];
     for (let j = bi; j < i; j++) {
       tot -= a[i][j] * b[j];
     }
     b[i] = tot;
   }
 
-  // Back substitution using upper triangular matrix
-  for (i = n - 1; i >= 0; i--) {
+  // Step 3: Back substitution using upper triangular matrix
+  for (let i = n - 1; i >= 0; i--) {
     let tot = b[i];
     for (let j = i + 1; j < n; j++) {
       tot -= a[i][j] * b[j];
