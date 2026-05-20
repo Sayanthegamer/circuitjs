@@ -206,6 +206,7 @@ html, body, #root {
   display: block;
   width: 100%;
   height: 100%;
+  touch-action: none;
 }
 
 /* ---- Hover Tooltip ---- */
@@ -377,9 +378,4 @@ html, body, #root {
 
 .readout-value.current {
   color: rgba(255, 238, 100, 0.85);
-}
-
-/* ---- Fix Browser Touch Hijacking ---- */
-.circuit-canvas {
-  touch-action: none;
 }
