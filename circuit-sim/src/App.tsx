@@ -24,6 +24,10 @@ interface PlacingState {
   phase: 'first' | 'second'; // first click or dragging
 }
 
+const snapToGrid = (val: number) => {
+  return Math.round(val / GRID_SIZE) * GRID_SIZE;
+};
+
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);

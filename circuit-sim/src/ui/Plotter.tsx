@@ -1,4 +1,4 @@
-import { useEffect, useRef, useImperativeHandle, forwardRef, useState } from 'react';
+import { useEffect, useRef, useImperativeHandle, forwardRef, useState, useCallback } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export interface ProbedItem {
@@ -27,6 +27,11 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
   const timesRef = useRef<number[]>([]);
   const valuesRef = useRef<number[][]>([]); // Array of lines, each is an array of points
 
+  // Min/Max tracking
+  const minValRef = useRef<number>(0);
+  const maxValRef = useRef<number>(0);
+  const needsRecalcRef = useRef<boolean>(true);
+
   useImperativeHandle(ref, () => ({
     pushData: (t: number, values: number[]) => {
       timesRef.current.push(t);
@@ -37,12 +42,31 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
       // Initialize value buffers if needed
       if (valuesRef.current.length !== values.length) {
         valuesRef.current = values.map(() => []);
+        needsRecalcRef.current = true;
       }
 
       for (let i = 0; i < values.length; i++) {
-        valuesRef.current[i].push(values[i]);
+        const newVal = values[i];
+        valuesRef.current[i].push(newVal);
+
+        let droppedVal: number | undefined;
         if (valuesRef.current[i].length > MAX_POINTS) {
-          valuesRef.current[i].shift();
+          droppedVal = valuesRef.current[i].shift();
+        }
+
+        // Incremental min/max tracking
+        if (!needsRecalcRef.current) {
+          if (newVal < minValRef.current) {
+            minValRef.current = newVal;
+          } else if (droppedVal !== undefined && droppedVal <= minValRef.current) {
+            needsRecalcRef.current = true;
+          }
+
+          if (newVal > maxValRef.current) {
+            maxValRef.current = newVal;
+          } else if (droppedVal !== undefined && droppedVal >= maxValRef.current) {
+            needsRecalcRef.current = true;
+          }
         }
       }
 
@@ -51,11 +75,12 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
     clear: () => {
       timesRef.current = [];
       valuesRef.current = [];
+      needsRecalcRef.current = true;
       draw();
     }
   }));
 
-  const draw = () => {
+  const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -91,14 +116,22 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
     if (timesRef.current.length < 2 || items.length === 0) return;
 
     // Determine min/max for auto-scaling
-    let minVal = 0;
-    let maxVal = 0;
-    for (const line of valuesRef.current) {
-      for (const val of line) {
-        if (val < minVal) minVal = val;
-        if (val > maxVal) maxVal = val;
+    if (needsRecalcRef.current) {
+      let minVal = 0;
+      let maxVal = 0;
+      for (const line of valuesRef.current) {
+        for (const val of line) {
+          if (val < minVal) minVal = val;
+          if (val > maxVal) maxVal = val;
+        }
       }
+      minValRef.current = minVal;
+      maxValRef.current = maxVal;
+      needsRecalcRef.current = false;
     }
+
+    let minVal = minValRef.current;
+    let maxVal = maxValRef.current;
     
     // Add some padding
     const range = Math.max(1e-6, maxVal - minVal);
@@ -151,14 +184,15 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
         ctx.fillText(`${valStr}${unit}`, 80, 10 + i * 16);
       }
     });
-  };
+  }, [items]);
 
   useEffect(() => {
     // Clear buffers if items change
     timesRef.current = [];
     valuesRef.current = [];
+    needsRecalcRef.current = true;
     draw();
-  }, [items]);
+  }, [items, draw]);
 
   return (
     <div className={`plotter-panel ${isMinimized ? 'minimized' : ''}`}>
