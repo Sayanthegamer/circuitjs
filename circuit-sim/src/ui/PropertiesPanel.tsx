@@ -1,5 +1,5 @@
 import type { ICircuitElement } from '../engine/types';
-import type { ResistorElement, VoltageSourceElement } from '../engine';
+import type { ResistorElement, VoltageSourceElement, CapacitorElement, InductorElement, SwitchElement } from '../engine';
 import { voltageToColor } from '../renderer/voltage-colors';
 import { TrendingUp } from 'lucide-react';
 import { type ProbedItem } from './Plotter';
@@ -34,7 +34,7 @@ export function PropertiesPanel({
       setProbedItems([...probedItems, {
         id: `${selectedElm.id}_${prop}`,
         elmId: selectedElm.id,
-        prop: prop as any,
+        prop: prop as ProbedItem['prop'],
         color
       }]);
     }
@@ -82,7 +82,7 @@ export function PropertiesPanel({
           <input
             type="number"
             step={1e-6}
-            value={(selectedElm as any).capacitance}
+            value={(selectedElm as CapacitorElement).capacitance}
             onChange={(e) => handlePropChange('capacitance', Number(e.target.value))}
           />
         </label>
@@ -94,7 +94,7 @@ export function PropertiesPanel({
           <input
             type="number"
             step={0.1}
-            value={(selectedElm as any).inductance}
+            value={(selectedElm as InductorElement).inductance}
             onChange={(e) => handlePropChange('inductance', Number(e.target.value))}
           />
         </label>
@@ -105,7 +105,7 @@ export function PropertiesPanel({
           <span>Closed</span>
           <input
             type="checkbox"
-            checked={(selectedElm as any).closed}
+            checked={(selectedElm as SwitchElement).closed}
             onChange={(e) => handlePropChange('closed', e.target.checked ? 1 : 0)}
           />
         </label>
