@@ -3,8 +3,8 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { Circuit, ResistorElement, VoltageSourceElement, WireElement, GroundElement, CapacitorElement, InductorElement, SwitchElement, DiodeElement, LEDElement } from './engine';
 import type { ICircuitElement } from './engine/types';
 import { Camera } from './renderer/camera';
-import { drawGrid, snapToGrid } from './renderer/grid';
-import { drawElement } from './renderer/element-renderers';
+import { drawGrid, GRID_SIZE } from './renderer/grid';
+import { drawElement, drawGhost } from './renderer/element-renderers';
 import { Toolbar } from './ui/Toolbar';
 import { PropertiesPanel } from './ui/PropertiesPanel';
 import { Plotter, type ProbedItem, type PlotterHandle } from './ui/Plotter';
@@ -376,9 +376,7 @@ function App() {
          const delta = dist - lastPinchDist.current;
          if (Math.abs(delta) > 0.5) { // small threshold
              // call handleTouchZoom
-             if (typeof (cameraRef.current as any).handleTouchZoom === 'function') {
-                 (cameraRef.current as any).handleTouchZoom(delta, midX, midY);
-             }
+             cameraRef.current.handleTouchZoom(delta, midX, midY);
          }
       }
 
@@ -698,6 +696,12 @@ function distToElement(px: number, py: number, elm: ICircuitElement): number {
   const nearX = x1 + t * dx;
   const nearY = y1 + t * dy;
   return Math.sqrt((px - nearX) ** 2 + (py - nearY) ** 2);
+}
+
+
+/** Snap a value to the nearest grid point */
+function snapToGrid(v: number): number {
+  return Math.round(v / GRID_SIZE) * GRID_SIZE;
 }
 
 export default App;
