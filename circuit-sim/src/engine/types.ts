@@ -164,11 +164,6 @@ export type WorkerRequest =
   | { type: 'updateElement'; id: ElementId; props: Record<string, unknown> }
   | { type: 'tick' };
 
-export type WorkerResponse =
-  | { type: 'state'; state: SimulationState }
-  | { type: 'error'; message: string }
-  | { type: 'ready' };
-
 export interface SimulationState {
   t: number;
   timeStep: number;
