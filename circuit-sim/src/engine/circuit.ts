@@ -63,6 +63,7 @@ export class Circuit implements IStamper {
   circuitNeedsMap = false;
   nodeVoltages: Float64Array = new Float64Array(0);
   lastNodeVoltages: Float64Array = new Float64Array(0);
+  prevNodeVoltages: Float64Array = new Float64Array(0);
 
   // Simulation time
   t = 0;
@@ -552,6 +553,9 @@ export class Circuit implements IStamper {
     if (!this.lastNodeVoltages || this.lastNodeVoltages.length !== this.nodeVoltages.length) {
       this.lastNodeVoltages = new Float64Array(this.nodeList.length - 1);
     }
+    if (!this.prevNodeVoltages || this.prevNodeVoltages.length !== this.nodeVoltages.length) {
+      this.prevNodeVoltages = new Float64Array(this.nodeList.length - 1);
+    }
     this.origMatrix = createMatrix(matrixSize);
     this.origRightSide = new Float64Array(matrixSize);
     this.circuitMatrixSize = this.circuitMatrixFullSize = matrixSize;
@@ -684,30 +688,32 @@ export class Circuit implements IStamper {
    * Run one timestep of the simulation.
    * For nonlinear circuits, iterates Newton-Raphson until convergence.
    */
-  runStep(): boolean {
+  runStep(captureTelemetry = false): boolean {
     if (!this.circuitMatrix || this.elements.length === 0) return false;
 
     // Start iteration for all elements
     for (const ce of this.elements) ce.startIteration();
 
     const maxSubIter = this.circuitNonLinear ? 5000 : 1;
-    this.lastErrors = [];
+    if (captureTelemetry) {
+      this.lastErrors = [];
+    }
 
     for (let subiter = 0; subiter < maxSubIter; subiter++) {
       if (this.circuitNonLinear && this.converged && subiter > 0) {
         break;
       }
 
-      const prevVoltages = Array.from(this.nodeVoltages);
+      copyVector(this.nodeVoltages, this.prevNodeVoltages, this.nodeVoltages.length);
 
-      if (!this.runSubIteration(subiter)) {
+      if (!this.runSubIteration(subiter, captureTelemetry)) {
         return false;
       }
 
-      if (this.circuitNonLinear) {
+      if (this.circuitNonLinear && captureTelemetry) {
         let maxDiff = 0;
         for (let j = 0; j < this.nodeVoltages.length; j++) {
-          maxDiff = Math.max(maxDiff, Math.abs(this.nodeVoltages[j] - (prevVoltages[j] || 0)));
+          maxDiff = Math.max(maxDiff, Math.abs(this.nodeVoltages[j] - this.prevNodeVoltages[j]));
         }
         this.lastErrors.push(maxDiff);
       }
@@ -731,7 +737,7 @@ export class Circuit implements IStamper {
     return true;
   }
 
-  private runSubIteration(subiter: number): boolean {
+  private runSubIteration(subiter: number, captureTelemetry: boolean): boolean {
     this.subIterations = subiter;
     this.converged = true;
 
@@ -757,12 +763,14 @@ export class Circuit implements IStamper {
     }
 
     // Capture telemetry before factorization
-    if (this.circuitNonLinear) {
-      this.lastG = this.circuitMatrix.map(row => [...row]);
-    } else {
-      this.lastG = this.origMatrix.map(row => [...row]);
+    if (captureTelemetry) {
+      if (this.circuitNonLinear) {
+        this.lastG = this.circuitMatrix.map(row => [...row]);
+      } else {
+        this.lastG = this.origMatrix.map(row => [...row]);
+      }
+      this.lastI = Array.from(this.circuitRightSide);
     }
-    this.lastI = Array.from(this.circuitRightSide);
 
     // Factor and solve
     if (this.circuitNonLinear) {
@@ -773,7 +781,9 @@ export class Circuit implements IStamper {
     }
 
     luSolve(this.circuitMatrix, this.circuitMatrixSize, this.circuitPermute, this.circuitRightSide);
-    this.lastV = Array.from(this.circuitRightSide);
+    if (captureTelemetry) {
+      this.lastV = Array.from(this.circuitRightSide);
+    }
     this.applySolvedRightSide(this.circuitRightSide);
 
     return true;

@@ -74,12 +74,14 @@ export function useSimulationLoop(
 
       // --- Simulate ---
       let steps = 0;
+      const needTelemetryUpdate = elapsedTelemetry + dt >= 0.25;
       if (simRunning && !circuit.stopMessage) {
         const stepSize = circuit.maxTimeStep > 0 ? circuit.maxTimeStep : 1e-4;
         const targetSteps = Math.round(dt / stepSize);
         const maxSteps = Math.max(1, Math.min(targetSteps, 2000));
         for (let i = 0; i < maxSteps; i++) {
-          if (!circuit.runStep()) break;
+          const captureTelemetry = needTelemetryUpdate && (i === maxSteps - 1);
+          if (!circuit.runStep(captureTelemetry)) break;
           steps++;
         }
       }
