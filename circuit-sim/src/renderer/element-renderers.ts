@@ -56,7 +56,7 @@ export function drawSwitch(
   drawLead(ctx, x1, y1, bx1, by1, elm.volts[0]);
   drawLead(ctx, bx2, by2, x2, y2, elm.volts[1]);
 
-  const closed = (elm as any).closed;
+  const closed = (elm as ICircuitElement & { closed?: boolean }).closed;
   ctx.strokeStyle = selected ? '#818cf8' : '#e0e0e8';
   ctx.lineWidth = 2.5;
   ctx.lineCap = 'round';

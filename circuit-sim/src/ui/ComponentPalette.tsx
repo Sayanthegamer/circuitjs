@@ -1,21 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Minus, 
-  Activity, 
-  Battery, 
+import {
+  Minus,
+  Activity,
+  Battery,
   ArrowDownToLine,
   Zap,
   Box,
   Search,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
 } from 'lucide-react';
-import type { ToolMode } from '../App';
-
-interface ComponentPaletteProps {
-  tool: ToolMode;
-  setTool: (t: ToolMode) => void;
-}
+import { useUIStore, type ToolMode } from '../stores/uiStore';
 
 const CATEGORIES: {
   id: string;
@@ -33,10 +28,10 @@ const CATEGORIES: {
     name: 'Basic Components',
     isOpen: true,
     items: [
-      { mode: 'wire' as ToolMode, label: 'Wire', icon: <Minus size={20} />, desc: 'Ideal conductor' },
-      { mode: 'resistor' as ToolMode, label: 'Resistor', icon: <Activity size={20} />, desc: 'Limits current flow' },
-      { mode: 'switch' as ToolMode, label: 'Switch', icon: <Minus size={20} style={{ strokeDasharray: '4 4' }} />, desc: 'SPST switch' },
-      { mode: 'ground' as ToolMode, label: 'Ground', icon: <ArrowDownToLine size={20} />, desc: '0V reference node' },
+      { mode: 'wire', label: 'Wire', icon: <Minus size={16} />, desc: 'Ideal conductor' },
+      { mode: 'resistor', label: 'Resistor', icon: <Activity size={16} />, desc: 'Limits current flow' },
+      { mode: 'switch', label: 'Switch', icon: <Minus size={16} className="skew-x-12" />, desc: 'SPST switch' },
+      { mode: 'ground', label: 'Ground', icon: <ArrowDownToLine size={16} />, desc: '0V reference node' },
     ]
   },
   {
@@ -44,7 +39,7 @@ const CATEGORIES: {
     name: 'Sources',
     isOpen: true,
     items: [
-      { mode: 'voltage' as ToolMode, label: 'DC Voltage', icon: <Battery size={20} />, desc: 'Constant voltage source' },
+      { mode: 'voltage', label: 'DC Voltage', icon: <Battery size={16} />, desc: 'Constant voltage source' },
     ]
   },
   {
@@ -52,8 +47,8 @@ const CATEGORIES: {
     name: 'Passive Components',
     isOpen: true,
     items: [
-      { mode: 'capacitor' as ToolMode, label: 'Capacitor', icon: <Minus size={20} className="rotate-90" />, desc: 'Stores charge' },
-      { mode: 'inductor' as ToolMode, label: 'Inductor', icon: <Activity size={20} />, desc: 'Stores flux' },
+      { mode: 'capacitor', label: 'Capacitor', icon: <Minus size={16} className="rotate-90" />, desc: 'Stores charge' },
+      { mode: 'inductor', label: 'Inductor', icon: <Activity size={16} />, desc: 'Stores flux' },
     ]
   },
   {
@@ -61,13 +56,16 @@ const CATEGORIES: {
     name: 'Semiconductors',
     isOpen: true,
     items: [
-      { mode: 'diode' as ToolMode, label: 'Diode', icon: <ChevronRight size={20} />, desc: 'One-way current' },
-      { mode: 'led' as ToolMode, label: 'LED', icon: <Zap size={20} />, desc: 'Light-emitting diode' },
+      { mode: 'diode', label: 'Diode', icon: <ChevronRight size={16} />, desc: 'One-way current' },
+      { mode: 'led', label: 'LED', icon: <Zap size={16} />, desc: 'Light-emitting diode' },
     ]
   }
 ];
 
-export function ComponentPalette({ tool, setTool }: ComponentPaletteProps) {
+export const ComponentPalette: React.FC = () => {
+  const tool = useUIStore((s) => s.tool);
+  const setTool = useUIStore((s) => s.setTool);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [categories, setCategories] = useState(CATEGORIES);
 
@@ -87,46 +85,50 @@ export function ComponentPalette({ tool, setTool }: ComponentPaletteProps) {
   }, [categories, searchQuery]);
 
   return (
-    <aside className="component-palette">
-      <div className="palette-header">
-        <h2>Components</h2>
-        <div className="search-box">
-          <Search size={14} className="search-icon" />
-          <input 
-            type="text" 
-            placeholder="Search parts..." 
+    <div className="flex flex-col h-full bg-surface">
+      {/* Palette Header */}
+      <div className="p-4 border-b border-border-hairline">
+        <div className="text-[10px] uppercase tracking-[0.2em] text-text-muted font-bold mb-3 font-mono">Palette</div>
+        <div className="relative flex items-center bg-surface-dim border border-border-hairline px-2 py-1">
+          <Search size={12} className="text-text-muted mr-2" />
+          <input
+            type="text"
+            placeholder="Search parts..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
+            className="w-full bg-transparent border-none text-xs text-text-primary placeholder-text-muted focus:outline-none font-mono"
           />
         </div>
       </div>
 
-      <div className="palette-content">
+      {/* Palette Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 select-none">
         {filteredCategories.map(cat => (
-          <div key={cat.id} className="palette-category">
-            <button 
-              className="category-header"
+          <div key={cat.id} className="space-y-2">
+            <button
+              className="w-full flex items-center gap-1.5 py-1 text-left text-[10px] font-bold uppercase tracking-wider text-text-secondary hover:text-text-primary focus:outline-none"
               onClick={() => toggleCategory(cat.id)}
             >
-              {cat.isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              {cat.isOpen ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
               <span>{cat.name}</span>
             </button>
-            
+
             {cat.isOpen && (
-              <div className="category-items">
+              <div className="grid grid-cols-2 gap-1.5">
                 {cat.items.map(item => (
                   <button
                     key={item.label}
-                    className={`palette-item ${tool === item.mode ? 'active' : ''}`}
                     onClick={() => setTool(item.mode)}
+                    className={`flex flex-col items-center justify-center aspect-square bg-surface-dim border p-2 transition-all text-center rounded-none focus:outline-none ${
+                      tool === item.mode
+                        ? 'border-primary bg-surface-bright text-primary font-bold shadow-[0_0_12px_rgba(99,102,241,0.15)]'
+                        : 'border-border-hairline text-text-secondary hover:border-text-secondary/50 hover:bg-surface-bright/50 hover:text-text-primary'
+                    }`}
                   >
-                    <div className="item-icon-wrapper">
+                    <div className="mb-2">
                       {item.icon}
                     </div>
-                    <div className="item-info">
-                      <span className="item-label">{item.label}</span>
-                      <span className="item-desc">{item.desc}</span>
-                    </div>
+                    <span className="text-[9px] font-mono tracking-wider uppercase font-bold">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -134,12 +136,14 @@ export function ComponentPalette({ tool, setTool }: ComponentPaletteProps) {
           </div>
         ))}
         {filteredCategories.length === 0 && (
-          <div className="no-results">
-            <Box size={24} />
-            <p>No components found</p>
+          <div className="flex flex-col items-center justify-center py-8 text-text-muted gap-2">
+            <Box size={20} />
+            <span className="text-[9px] uppercase tracking-wider font-mono">No components</span>
           </div>
         )}
       </div>
-    </aside>
+    </div>
   );
-}
+};
+
+export default ComponentPalette;

@@ -4,8 +4,6 @@
 
 import type { ICircuitElement, IStamper, Point, ElementId } from '../types';
 
-let nextId = 0;
-
 export abstract class CircuitElement implements ICircuitElement {
   id: ElementId;
   x: number;
@@ -21,7 +19,9 @@ export abstract class CircuitElement implements ICircuitElement {
   protected voltSource = -1;
 
   constructor(x: number, y: number, x2?: number, y2?: number) {
-    this.id = `elm_${nextId++}`;
+    this.id = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? `elm_${crypto.randomUUID()}`
+      : `elm_${Math.random().toString(36).substring(2, 11)}_${Date.now().toString(36)}`;
     this.x = x;
     this.y = y;
     this.x2 = x2 ?? x;
@@ -95,13 +95,15 @@ export abstract class CircuitElement implements ICircuitElement {
     this.current = 0;
   }
 
-  /** Get voltage difference across element (post 1 - post 0) */
+  /** Get voltage difference across element (post 0 - post 1) */
   getVoltageDiff(): number {
-    return this.volts[1] - this.volts[0];
+    if (this.volts.length < 2) return 0;
+    return this.volts[0] - this.volts[1];
   }
 
   /** Get power dissipated */
   getPower(): number {
-    return -this.getVoltageDiff() * this.current;
+    if (this.volts.length < 2) return 0;
+    return this.getVoltageDiff() * this.current;
   }
 }
