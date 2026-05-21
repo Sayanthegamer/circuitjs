@@ -95,15 +95,15 @@ export abstract class CircuitElement implements ICircuitElement {
     this.current = 0;
   }
 
-  /** Get voltage difference across element (post 1 - post 0) */
+  /** Get voltage difference across element (post 0 - post 1) */
   getVoltageDiff(): number {
     if (this.volts.length < 2) return 0;
-    return this.volts[1] - this.volts[0];
+    return this.volts[0] - this.volts[1];
   }
 
   /** Get power dissipated */
   getPower(): number {
     if (this.volts.length < 2) return 0;
-    return -this.getVoltageDiff() * this.current;
+    return this.getVoltageDiff() * this.current;
   }
 }

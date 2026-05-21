@@ -182,7 +182,7 @@ export function useSimulationLoop(
           switch (item.prop) {
             case 'V1': return e.volts[0];
             case 'V2': return e.volts[1];
-            case 'Vdiff': return e.volts[0] - e.volts[1];
+            case 'Vdiff': return e.getVoltageDiff();
             case 'I': return e.getCurrent();
             default: return 0;
           }
