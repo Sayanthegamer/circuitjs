@@ -6,7 +6,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useUIStore } from '../stores/uiStore';
-import { CATEGORIES } from './componentCategories.tsx';
+import { CATEGORIES } from './componentCategories';
 
 export const ComponentPalette: React.FC = () => {
   const tool = useUIStore((s) => s.tool);

@@ -1,10 +1,5 @@
 import { useState, useMemo } from 'react';
 import {
-  Minus,
-  Activity,
-  Battery,
-  ArrowDownToLine,
-  Zap,
   Box,
   Search,
   ChevronDown,
