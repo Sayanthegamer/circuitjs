@@ -15,6 +15,8 @@ import './ui.css';
 
 export type ToolMode = 'select' | 'wire' | 'resistor' | 'voltage' | 'ground' | 'capacitor' | 'inductor' | 'switch' | 'diode' | 'led';
 
+function snapToGrid(v: number): number { return Math.round(v / GRID_SIZE) * GRID_SIZE; }
+
 interface PlacingState {
   type: ToolMode;
   x1: number;
