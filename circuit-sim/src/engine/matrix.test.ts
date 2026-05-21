@@ -131,69 +131,95 @@ describe('Matrix operations', () => {
     });
   });
 
-  describe('Matrix utilities', () => {
-    it('createMatrix initializes an nxn matrix of zeros', () => {
-      const n = 3;
-      const m = createMatrix(n);
+  describe('matrix utilities', () => {
+    describe('createMatrix', () => {
+      it('creates an n x n matrix filled with zeros', () => {
+        const n = 3;
+        const matrix = createMatrix(n);
 
-      expect(m.length).toBe(n);
-      expect(m[0].length).toBe(n);
-
-      for (let i = 0; i < n; i++) {
-        for (let j = 0; j < n; j++) {
-          expect(m[i][j]).toBe(0);
+        expect(matrix).toHaveLength(n);
+        for (let i = 0; i < n; i++) {
+          expect(matrix[i]).toHaveLength(n);
+          expect(matrix[i]).toBeInstanceOf(Float64Array);
+          for (let j = 0; j < n; j++) {
+            expect(matrix[i][j]).toBe(0);
+          }
         }
-      }
+      });
+
+      it('creates an empty matrix when n = 0', () => {
+        const matrix = createMatrix(0);
+        expect(matrix).toHaveLength(0);
+      });
+
+      it('throws RangeError for negative dimensions', () => {
+        expect(() => createMatrix(-1)).toThrow(RangeError);
+      });
     });
 
-    it('copyMatrix creates a deep copy', () => {
-      const src = [
-        [1, 2],
-        [3, 4]
-      ];
-      const dst = createMatrix(2);
+    describe('copyVector', () => {
+      it('copies standard arrays correctly', () => {
+        const src = [1, 2, 3];
+        const dst = [0, 0, 0];
+        copyVector(src, dst, 3);
+        expect(dst).toEqual([1, 2, 3]);
+      });
 
-      copyMatrix(src, dst, 2);
+      it('copies Float64Arrays correctly', () => {
+        const src = new Float64Array([1.5, 2.5, 3.5]);
+        const dst = new Float64Array([0, 0, 0]);
+        copyVector(src, dst, 3);
+        expect(dst).toEqual(new Float64Array([1.5, 2.5, 3.5]));
+      });
 
-      expect(dst[0][0]).toBe(1);
-      expect(dst[0][1]).toBe(2);
-      expect(dst[1][0]).toBe(3);
-      expect(dst[1][1]).toBe(4);
+      it('copies Float64Arrays with subset length', () => {
+        const src = new Float64Array([1, 2, 3, 4, 5]);
+        const dst = new Float64Array([0, 0, 0, 0, 0]);
+        copyVector(src, dst, 3);
+        expect(dst).toEqual(new Float64Array([1, 2, 3, 0, 0]));
+      });
 
-      // Modify src to ensure it's a deep copy (or at least independent)
-      src[0][0] = 99;
-      expect(dst[0][0]).toBe(1);
+      it('copies mixed array types correctly', () => {
+        const src = [1, 2, 3];
+        const dst = new Float64Array([0, 0, 0]);
+        copyVector(src, dst, 3);
+        expect(Array.from(dst)).toEqual([1, 2, 3]);
+      });
     });
 
-    it('copyVector copies between arrays', () => {
-      const src = [1, 2, 3];
-      const dst = [0, 0, 0];
+    describe('copyMatrix', () => {
+      it('copies matrix elements correctly', () => {
+        const src = [
+          [1, 2],
+          [3, 4]
+        ];
+        const dst = [
+          [0, 0],
+          [0, 0]
+        ];
+        copyMatrix(src, dst, 2);
+        expect(dst).toEqual([
+          [1, 2],
+          [3, 4]
+        ]);
+      });
 
-      copyVector(src, dst, 3);
+      it('copies Float64Array matrices correctly', () => {
+        const src = createMatrix(2);
+        src[0][0] = 1; src[0][1] = 2;
+        src[1][0] = 3; src[1][1] = 4;
 
-      expect(dst).toEqual([1, 2, 3]);
-    });
+        const dst = createMatrix(2);
+        copyMatrix(src, dst, 2);
 
-    it('copyVector copies between Float64Arrays', () => {
-      const src = new Float64Array([1.5, 2.5, 3.5]);
-      const dst = new Float64Array([0, 0, 0]);
+        expect(dst).toEqual(src);
+        // Ensure deep copy
+        expect(dst[0]).not.toBe(src[0]);
 
-      copyVector(src, dst, 3);
-
-      expect(dst[0]).toBe(1.5);
-      expect(dst[1]).toBe(2.5);
-      expect(dst[2]).toBe(3.5);
-    });
-
-    it('copyVector copies partial arrays', () => {
-      const src = new Float64Array([1, 2, 3, 4, 5]);
-      const dst = new Float64Array([0, 0, 0]);
-
-      copyVector(src, dst, 2); // Only copy first 2 elements
-
-      expect(dst[0]).toBe(1);
-      expect(dst[1]).toBe(2);
-      expect(dst[2]).toBe(0); // Third element untouched
+        // Modify src and ensure dst isn't changed
+        src[0][0] = 99;
+        expect(dst[0][0]).toBe(1);
+      });
     });
   });
 });
