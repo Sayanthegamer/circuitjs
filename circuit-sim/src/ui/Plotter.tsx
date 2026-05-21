@@ -57,14 +57,15 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
 
   useImperativeHandle(ref, () => ({
     pushData: (t: number, values: number[]) => {
+      // Initialize value buffers if channel count changes to prevent time desync
+      if (valuesRef.current.length !== values.length) {
+        valuesRef.current = values.map(() => []);
+        timesRef.current = [];
+      }
+
       timesRef.current.push(t);
       if (timesRef.current.length > MAX_POINTS) {
         timesRef.current.shift();
-      }
-
-      // Initialize value buffers if needed
-      if (valuesRef.current.length !== values.length) {
-        valuesRef.current = values.map(() => []);
       }
 
       for (let i = 0; i < values.length; i++) {
@@ -109,10 +110,10 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
     const pixelsPerDiv = 40;
 
     // 1. Draw background grid
-    ctx.fillStyle = '#0f0f13';
+    ctx.fillStyle = '#0a0a0f';
     ctx.fillRect(0, 0, width, height);
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.lineWidth = 1;
     
     // Vertical grid divisions
@@ -131,7 +132,7 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
     }
 
     // Center Reference Line
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, centerY);
