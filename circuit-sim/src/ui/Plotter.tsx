@@ -109,6 +109,8 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
 
     // Handle high DPI
     const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
     if (canvas.width !== rect.width * window.devicePixelRatio) {
       canvas.width = rect.width * window.devicePixelRatio;
       canvas.height = rect.height * window.devicePixelRatio;
@@ -354,43 +356,41 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
       </div>
 
       {/* Main Drawer Content */}
-      {!isMinimized && (
-        <div className="flex-1 relative overflow-hidden bg-[#07070a] h-[200px]">
-          {activeTab === 'plotter' ? (
-            <div className="w-full h-full relative cursor-crosshair overflow-hidden plotter-grid">
-              <canvas 
-                ref={canvasRef} 
-                className="w-full h-full block"
-              />
-              <div className="absolute right-4 bottom-2 pointer-events-none flex items-center gap-4">
-                <div className="text-[8px] font-mono text-text-muted bg-surface-dim px-2 py-0.5 border border-border-hairline">
-                  BUFFER: ACTIVE
-                </div>
-              </div>
+      <div className={`flex-1 relative overflow-hidden bg-[#07070a] h-[200px] ${isMinimized ? 'hidden' : 'block'}`}>
+        {/* Oscilloscope Container */}
+        <div className={`w-full h-full relative cursor-crosshair overflow-hidden plotter-grid ${activeTab === 'plotter' ? 'block' : 'hidden'}`}>
+          <canvas 
+            ref={canvasRef} 
+            className="w-full h-full block"
+          />
+          <div className="absolute right-4 bottom-2 pointer-events-none flex items-center gap-4">
+            <div className="text-[8px] font-mono text-text-muted bg-surface-dim px-2 py-0.5 border border-border-hairline">
+              BUFFER: ACTIVE
             </div>
-          ) : (
-            <div className="w-full h-full overflow-x-auto overflow-y-hidden px-6 py-4 flex items-center justify-between gap-8">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex-shrink-0">
-                  <MatrixInspector data={matrixG} label="Conductance [G]" precision={2} />
-                </div>
-                <div className="text-sm font-light text-text-muted mx-1 flex-shrink-0">×</div>
-                <div className="flex-shrink-0">
-                  <MatrixInspector data={vectorV} label="Voltages [v]" precision={2} />
-                </div>
-                <div className="text-sm font-light text-text-muted mx-1 flex-shrink-0">=</div>
-                <div className="flex-shrink-0">
-                  <MatrixInspector data={vectorI} label="Sources [i]" precision={2} />
-                </div>
-              </div>
-              
-              <div className="flex-shrink-0 pr-4">
-                <ConvergenceSparkline errors={nrErrors} />
-              </div>
-            </div>
-          )}
+          </div>
         </div>
-      )}
+
+        {/* Solver Telemetry Container */}
+        <div className={`w-full h-full overflow-x-auto overflow-y-hidden px-6 py-4 flex items-center justify-between gap-8 ${activeTab === 'diagnostics' ? 'flex' : 'hidden'}`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex-shrink-0">
+              <MatrixInspector data={matrixG} label="Conductance [G]" precision={2} />
+            </div>
+            <div className="text-sm font-light text-text-muted mx-1 flex-shrink-0">×</div>
+            <div className="flex-shrink-0">
+              <MatrixInspector data={vectorV} label="Voltages [v]" precision={2} />
+            </div>
+            <div className="text-sm font-light text-text-muted mx-1 flex-shrink-0">=</div>
+            <div className="flex-shrink-0">
+              <MatrixInspector data={vectorI} label="Sources [i]" precision={2} />
+            </div>
+          </div>
+          
+          <div className="flex-shrink-0 pr-4">
+            <ConvergenceSparkline errors={nrErrors} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 });
