@@ -4,6 +4,11 @@
 
 const GRID_SIZE = 16;
 
+/** Snap a value to the nearest grid point */
+export function snapToGrid(v: number): number {
+  return Math.round(v / GRID_SIZE) * GRID_SIZE;
+}
+
 /** Draw the dot grid */
 export function drawGrid(
   ctx: CanvasRenderingContext2D,
