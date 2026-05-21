@@ -1,9 +1,8 @@
 import React from 'react';
-import { useUIStore } from '../stores/uiStore';
+import { useUIStore, lastMousePos } from '../stores/uiStore';
 
 const NodeHUD: React.FC = () => {
   const elm = useUIStore((s) => s.hoveredElm);
-  const position = useUIStore((s) => s.mousePos);
 
   if (!elm) return null;
 
@@ -23,10 +22,11 @@ const NodeHUD: React.FC = () => {
 
   return (
     <div 
+      id="node-hud"
       className="fixed z-[100] pointer-events-none transition-all duration-75 ease-out"
       style={{ 
-        left: position.x + 16, 
-        top: position.y + 16,
+        left: lastMousePos.x + 16, 
+        top: lastMousePos.y + 16,
       }}
     >
       <div className="bg-surface-panel/90 backdrop-blur-md border border-border-hairline rounded shadow-2xl overflow-hidden min-w-[180px]">

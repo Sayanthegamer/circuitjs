@@ -15,6 +15,24 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+      if (isCmdOrCtrl && !e.altKey) {
+        if (e.key === 'z' || e.key === 'Z') {
+          e.preventDefault();
+          if (e.shiftKey) {
+            useCircuitStore.getState().redo();
+          } else {
+            useCircuitStore.getState().undo();
+          }
+          return;
+        }
+        if (e.key === 'y' || e.key === 'Y') {
+          e.preventDefault();
+          useCircuitStore.getState().redo();
+          return;
+        }
+      }
+
       if (e.ctrlKey || e.metaKey || e.altKey) {
         return;
       }
@@ -27,8 +45,11 @@ export function useKeyboardShortcuts() {
         case 'Backspace':
           if (selectedId) {
             e.preventDefault();
+            const { pushHistory, saveToLocalStorage } = useCircuitStore.getState();
+            pushHistory();
             circuit.removeElement(selectedId);
             circuit.analyzeCircuit();
+            saveToLocalStorage();
             setSelectedId(null);
           }
           break;

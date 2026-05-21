@@ -61,29 +61,37 @@ function App() {
 
   // Init circuit and camera on mount
   useEffect(() => {
-    const { circuit, camera: cam, setProbedItems } = useCircuitStore.getState();
+    const { circuit, camera: cam, setProbedItems, loadFromLocalStorage } = useCircuitStore.getState();
     circuit.clearElements();
     circuit.stopMessage = null;
 
-    const vs    = new VoltageSourceElement(0, 160, 0, 0, 5);
-    const r1    = new ResistorElement(0, 0, 160, 0, 1000);
-    const diode = new DiodeElement(160, 0, 160, 160);
-    const w1    = new WireElement(160, 160, 0, 160);
-    const gnd   = new GroundElement(0, 160);
+    const loaded = loadFromLocalStorage();
+    if (!loaded) {
+      const vs    = new VoltageSourceElement(0, 160, 0, 0, 5);
+      const r1    = new ResistorElement(0, 0, 160, 0, 1000);
+      const diode = new DiodeElement(160, 0, 160, 160);
+      const w1    = new WireElement(160, 160, 0, 160);
+      const gnd   = new GroundElement(0, 160);
 
-    circuit.addElement(vs);
-    circuit.addElement(r1);
-    circuit.addElement(diode);
-    circuit.addElement(w1);
-    circuit.addElement(gnd);
+      circuit.addElement(vs);
+      circuit.addElement(r1);
+      circuit.addElement(diode);
+      circuit.addElement(w1);
+      circuit.addElement(gnd);
 
-    circuit.analyzeCircuit();
+      circuit.analyzeCircuit();
 
-    // Auto-probe the diode voltage and current to boot-start the Plotter beautifully
-    setProbedItems([
-      { id: `${diode.id}_Vdiff`, elmId: diode.id, prop: 'Vdiff', color: '#6366f1' },
-      { id: `${diode.id}_I`, elmId: diode.id, prop: 'I', color: '#ffee64' }
-    ]);
+      // Auto-probe the diode voltage and current to boot-start the Plotter beautifully
+      setProbedItems([
+        { id: `${diode.id}_Vdiff`, elmId: diode.id, prop: 'Vdiff', color: '#6366f1' },
+        { id: `${diode.id}_I`, elmId: diode.id, prop: 'I', color: '#ffee64' }
+      ]);
+    } else {
+      // Validate probed items for loaded circuit
+      const currentProbed = useCircuitStore.getState().probedItems;
+      const validProbed = currentProbed.filter(item => circuit.getElement(item.elmId) !== null);
+      setProbedItems(validProbed);
+    }
 
     // Center camera on the circuit
     const dpr = window.devicePixelRatio || 1;

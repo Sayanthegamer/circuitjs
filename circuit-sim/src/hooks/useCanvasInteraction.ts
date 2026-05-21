@@ -1,6 +1,6 @@
 import React, { useRef, useCallback } from 'react';
 import { useCircuitStore } from '../stores/circuitStore';
-import { useUIStore } from '../stores/uiStore';
+import { useUIStore, lastMousePos } from '../stores/uiStore';
 import type { ICircuitElement } from '../engine/types';
 import {
   ResistorElement,
@@ -143,10 +143,13 @@ export function useCanvasInteraction(
           camera.startPan(e.clientX - rect.left, e.clientY - rect.top);
         }
       } else if (tool === 'ground') {
+        const { pushHistory, saveToLocalStorage } = useCircuitStore.getState();
+        pushHistory();
         // Ground is single-click placement
         const gnd = new GroundElement(snapped.x, snapped.y);
         circuit.addElement(gnd);
         circuit.analyzeCircuit();
+        saveToLocalStorage();
         setSelectedId(gnd.id);
         setTool('select');
       } else {
@@ -179,10 +182,16 @@ export function useCanvasInteraction(
     }
 
     const { camera, circuit } = useCircuitStore.getState();
-    const { tool, placing, setPlacing, setMousePos, setHoveredElm } = useUIStore.getState();
+    const { tool, placing, setPlacing, setHoveredElm } = useUIStore.getState();
 
-    // Track mouse coordinates for NodeHUD
-    setMousePos({ x: e.clientX, y: e.clientY });
+    // Track mouse coordinates for NodeHUD non-reactively
+    lastMousePos.x = e.clientX;
+    lastMousePos.y = e.clientY;
+    const hudEl = document.getElementById('node-hud');
+    if (hudEl) {
+      hudEl.style.left = `${e.clientX + 16}px`;
+      hudEl.style.top = `${e.clientY + 16}px`;
+    }
 
     if (activePointers.current.size === 2) {
       // Two-finger Pan & Zoom
@@ -318,8 +327,11 @@ export function useCanvasInteraction(
       }
 
       if (newElm) {
+        const { pushHistory, saveToLocalStorage } = useCircuitStore.getState();
+        pushHistory();
         circuit.addElement(newElm);
         circuit.analyzeCircuit();
+        saveToLocalStorage();
         setSelectedId(newElm.id);
       }
 

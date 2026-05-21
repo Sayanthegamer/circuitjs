@@ -69,6 +69,9 @@ export function PropertiesPanel() {
   };
 
   const handlePropChange = (prop: 'resistance' | 'voltage' | 'capacitance' | 'inductance' | 'closed', value: number) => {
+    const { pushHistory, saveToLocalStorage } = useCircuitStore.getState();
+    pushHistory();
+
     if (selectedElm.type === 'resistor' && prop === 'resistance') {
       (selectedElm as ResistorElement).resistance = value;
     } else if (selectedElm.type === 'voltage' && prop === 'voltage') {
@@ -81,6 +84,7 @@ export function PropertiesPanel() {
       (selectedElm as SwitchElement).closed = value === 1;
     }
     circuit.analyzeCircuit();
+    saveToLocalStorage();
   };
 
   const commitResistance = () => {

@@ -6,6 +6,10 @@ import {
   RotateCcw,
   Trash2,
   List,
+  Undo,
+  Redo,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { useUIStore, type ToolMode } from '../stores/uiStore';
 import { useCircuitStore } from '../stores/circuitStore';
@@ -24,6 +28,8 @@ export const Toolbar: React.FC = () => {
   const setSimRunning = useCircuitStore((s) => s.setSimRunning);
   const simTime = useCircuitStore((s) => s.simTime);
   const stopMessage = useCircuitStore((s) => s.stopMessage);
+  const undoStack = useCircuitStore((s) => s.undoStack);
+  const redoStack = useCircuitStore((s) => s.redoStack);
 
   const selectTool = (mode: ToolMode) => {
     setTool(mode);
@@ -35,11 +41,49 @@ export const Toolbar: React.FC = () => {
 
   const handleDelete = () => {
     if (selectedId) {
-      const { circuit } = useCircuitStore.getState();
+      const { circuit, pushHistory, saveToLocalStorage } = useCircuitStore.getState();
+      pushHistory();
       circuit.removeElement(selectedId);
       circuit.analyzeCircuit();
+      saveToLocalStorage();
       setSelectedId(null);
     }
+  };
+
+  const handleUndo = () => {
+    useCircuitStore.getState().undo();
+  };
+
+  const handleRedo = () => {
+    useCircuitStore.getState().redo();
+  };
+
+  const handleExport = () => {
+    const jsonStr = useCircuitStore.getState().exportToJson();
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `circuit-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const result = evt.target?.result;
+      if (typeof result === 'string') {
+        const success = useCircuitStore.getState().importFromJson(result);
+        if (!success) {
+          alert('Failed to import circuit. Please check the JSON format.');
+        }
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
@@ -124,14 +168,14 @@ export const Toolbar: React.FC = () => {
         <div className="flex items-center gap-0.5 bg-surface-dim border border-border-hairline p-0.5">
           <button
             onClick={() => setSimRunning(!simRunning)}
-            className={`p-1.5 transition-all focus:outline-none rounded-none ${simRunning ? 'text-primary' : 'text-text-secondary hover:bg-surface-bright/50'}`}
+            className={`p-1.5 transition-all focus:outline-none rounded-none cursor-pointer ${simRunning ? 'text-primary' : 'text-text-secondary hover:bg-surface-bright/50'}`}
             title={simRunning ? "Pause (Space)" : "Run (Space)"}
           >
             {simRunning ? <Pause size={14} /> : <Play size={14} />}
           </button>
           <button
             onClick={handleReset}
-            className="p-1.5 text-text-secondary hover:bg-surface-bright/50 transition-colors focus:outline-none rounded-none"
+            className="p-1.5 text-text-secondary hover:bg-surface-bright/50 transition-colors focus:outline-none rounded-none cursor-pointer"
             title="Reset Simulation"
           >
             <RotateCcw size={14} />
@@ -139,18 +183,61 @@ export const Toolbar: React.FC = () => {
           <button
             onClick={handleDelete}
             disabled={!selectedId}
-            className={`p-1.5 transition-colors focus:outline-none rounded-none ${selectedId ? 'text-voltage-neg hover:bg-surface-bright/50' : 'text-text-muted opacity-40 cursor-not-allowed'}`}
+            className={`p-1.5 transition-colors focus:outline-none rounded-none ${selectedId ? 'text-voltage-neg hover:bg-surface-bright/50 cursor-pointer' : 'text-text-muted opacity-40 cursor-not-allowed'}`}
             title="Delete Selected Component (Del)"
           >
             <Trash2 size={14} />
           </button>
           <button
             onClick={() => setShowValues(!showValues)}
-            className={`p-1.5 transition-colors focus:outline-none rounded-none ${showValues ? 'text-primary bg-surface-bright' : 'text-text-secondary hover:bg-surface-bright/50'}`}
+            className={`p-1.5 transition-colors focus:outline-none rounded-none cursor-pointer ${showValues ? 'text-primary bg-surface-bright' : 'text-text-secondary hover:bg-surface-bright/50'}`}
             title="Toggle Value Labels"
           >
             <List size={14} />
           </button>
+        </div>
+
+        {/* Undo/Redo Controls */}
+        <div className="flex items-center gap-0.5 bg-surface-dim border border-border-hairline p-0.5">
+          <button
+            onClick={handleUndo}
+            disabled={undoStack.length === 0}
+            className={`p-1.5 transition-colors focus:outline-none rounded-none ${undoStack.length > 0 ? 'text-text-secondary hover:bg-surface-bright/50 cursor-pointer' : 'text-text-muted opacity-40 cursor-not-allowed'}`}
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo size={14} />
+          </button>
+          <button
+            onClick={handleRedo}
+            disabled={redoStack.length === 0}
+            className={`p-1.5 transition-colors focus:outline-none rounded-none ${redoStack.length > 0 ? 'text-text-secondary hover:bg-surface-bright/50 cursor-pointer' : 'text-text-muted opacity-40 cursor-not-allowed'}`}
+            title="Redo (Ctrl+Y)"
+          >
+            <Redo size={14} />
+          </button>
+        </div>
+
+        {/* Serialization Controls */}
+        <div className="flex items-center gap-0.5 bg-surface-dim border border-border-hairline p-0.5">
+          <button
+            onClick={handleExport}
+            className="p-1.5 text-text-secondary hover:bg-surface-bright/50 transition-colors focus:outline-none rounded-none cursor-pointer"
+            title="Export Circuit (JSON)"
+          >
+            <Download size={14} />
+          </button>
+          <label
+            className="p-1.5 text-text-secondary hover:bg-surface-bright/50 transition-colors focus:outline-none rounded-none cursor-pointer flex items-center justify-center"
+            title="Import Circuit (JSON)"
+          >
+            <Upload size={14} />
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+              className="hidden"
+            />
+          </label>
         </div>
 
         {/* Engine Telemetry */}

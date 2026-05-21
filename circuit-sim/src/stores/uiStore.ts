@@ -25,7 +25,6 @@ interface UIState {
 
   // Hover state — subscribed to only by NodeHUD, not the whole App
   hoveredElm: ICircuitElement | null;
-  mousePos: { x: number; y: number };
 
   // Actions
   setTool: (t: ToolMode) => void;
@@ -34,8 +33,9 @@ interface UIState {
   setViewMode: (m: 'workspace' | 'whitepaper') => void;
   setShowValues: (s: boolean) => void;
   setHoveredElm: (elm: ICircuitElement | null) => void;
-  setMousePos: (pos: { x: number; y: number }) => void;
 }
+
+export const lastMousePos = { x: 0, y: 0 };
 
 export const useUIStore = create<UIState>((set) => ({
   tool: 'select',
@@ -44,7 +44,6 @@ export const useUIStore = create<UIState>((set) => ({
   viewMode: 'workspace',
   showValues: true,
   hoveredElm: null,
-  mousePos: { x: 0, y: 0 },
 
   setTool: (t) => set({ tool: t }),
   setSelectedId: (id) => set({ selectedId: id }),
@@ -52,5 +51,4 @@ export const useUIStore = create<UIState>((set) => ({
   setViewMode: (m) => set({ viewMode: m }),
   setShowValues: (s) => set({ showValues: s }),
   setHoveredElm: (elm) => set({ hoveredElm: elm }),
-  setMousePos: (pos) => set({ mousePos: pos }),
 }));
