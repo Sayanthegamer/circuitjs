@@ -1,8 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Circuit } from './circuit';
 import { ResistorElement } from './elements/resistor';
 import { VoltageSourceElement } from './elements/voltage-source';
+import { GroundElement } from './elements/ground';
+import { DiodeElement } from './elements/diode';
 import { WireElement } from './elements/wire';
+import * as matrix from './matrix';
 
 describe('Circuit', () => {
   let circuit: Circuit;
@@ -77,37 +80,6 @@ describe('Circuit', () => {
     });
   });
 
-  describe('Simulation Execution', () => {
-    it('runs step and calculates basic voltage divider correctly', () => {
-      // 10V source, two 100 ohm resistors in series
-      const vSource = new VoltageSourceElement(0, 0, 0, 10, 10);
-      const r1 = new ResistorElement(0, 10, 10, 10, 100);
-      const r2 = new ResistorElement(10, 10, 10, 0, 100);
-      const wire = new WireElement(10, 0, 0, 0); // complete loop back to source
-
-      circuit.addElement(vSource);
-      circuit.addElement(r1);
-      circuit.addElement(r2);
-      circuit.addElement(wire);
-
-      circuit.analyzeCircuit();
-      const success = circuit.runStep();
-
-      expect(success).toBe(true);
-      expect(circuit.converged).toBe(true);
-
-      // Node voltages
-      // We expect the voltage between the two resistors to be 5V.
-      // With voltage source at 10V (node 0 to 1), check r1 and r2 voltages
-      expect(Math.abs(r1.getVoltageDiff())).toBeCloseTo(5);
-      expect(Math.abs(r2.getVoltageDiff())).toBeCloseTo(5);
-
-      // vSource provides 10V. The total resistance is 200 ohms. I = V/R = 10/200 = 0.05 A
-      expect(Math.abs(r1.getCurrent())).toBeCloseTo(0.05);
-      expect(Math.abs(r2.getCurrent())).toBeCloseTo(0.05);
-    });
-  });
-
   describe('State Management', () => {
     it('resets circuit correctly', () => {
       const vSource = new VoltageSourceElement(0, 0, 0, 10, 10);
@@ -152,6 +124,161 @@ describe('Circuit', () => {
       expect(state.elementStates.length).toBe(2);
       expect(state.elementStates[0].id).toBe(vSource.id);
       expect(state.elementStates[1].id).toBe(r1.id);
+    });
+  });
+
+  describe('Simulation Execution (runStep)', () => {
+    it('runs step and calculates basic voltage divider correctly', () => {
+      // 10V source, two 100 ohm resistors in series
+      const vSource = new VoltageSourceElement(0, 0, 0, 10, 10);
+      const r1 = new ResistorElement(0, 10, 10, 10, 100);
+      const r2 = new ResistorElement(10, 10, 10, 0, 100);
+      const wire = new WireElement(10, 0, 0, 0); // complete loop back to source
+
+      circuit.addElement(vSource);
+      circuit.addElement(r1);
+      circuit.addElement(r2);
+      circuit.addElement(wire);
+
+      circuit.analyzeCircuit();
+      const success = circuit.runStep();
+
+      expect(success).toBe(true);
+      expect(circuit.converged).toBe(true);
+
+      // Node voltages
+      // We expect the voltage between the two resistors to be 5V.
+      expect(Math.abs(r1.getVoltageDiff())).toBeCloseTo(5);
+      expect(Math.abs(r2.getVoltageDiff())).toBeCloseTo(5);
+
+      // vSource provides 10V. The total resistance is 200 ohms. I = V/R = 10/200 = 0.05 A
+      expect(Math.abs(r1.getCurrent())).toBeCloseTo(0.05);
+      expect(Math.abs(r2.getCurrent())).toBeCloseTo(0.05);
+    });
+
+    it('returns false if matrix is not initialized', () => {
+      const emptyCircuit = new Circuit();
+      emptyCircuit.circuitMatrix = [] as unknown as number[][];
+      expect(emptyCircuit.runStep()).toBe(false);
+
+      const nullMatrixCircuit = new Circuit();
+      nullMatrixCircuit.circuitMatrix = undefined as unknown as number[][];
+      nullMatrixCircuit.addElement(new ResistorElement(0, 0, 10, 0, 100));
+      expect(nullMatrixCircuit.runStep()).toBe(false);
+    });
+
+    it('runs a successful step for a simple linear circuit', () => {
+      const localCircuit = new Circuit();
+
+      const vs = new VoltageSourceElement(0, 0, 0, 10, 5);
+      const r = new ResistorElement(0, 10, 10, 10, 100);
+      const wire = new WireElement(10, 10, 0, 0);
+      const ground = new GroundElement(0, 10);
+
+      localCircuit.addElement(vs);
+      localCircuit.addElement(r);
+      localCircuit.addElement(wire);
+      localCircuit.addElement(ground);
+
+      localCircuit.analyzeCircuit();
+
+      expect(localCircuit.subIterations).toBe(0);
+
+      const rStartIterationSpy = vi.spyOn(r, 'startIteration');
+      const rStepFinishedSpy = vi.spyOn(r, 'stepFinished');
+
+      const result = localCircuit.runStep();
+
+      expect(result).toBe(true);
+      expect(localCircuit.converged).toBe(true);
+
+      expect(localCircuit.subIterations).toBe(0);
+      expect(rStartIterationSpy).toHaveBeenCalled();
+      expect(rStepFinishedSpy).toHaveBeenCalled();
+
+      expect(localCircuit.t).toBeGreaterThan(0);
+    });
+
+    it('runs multiple sub-iterations for non-linear circuits', () => {
+      const localCircuit = new Circuit();
+
+      const vs = new VoltageSourceElement(0, 0, 0, 10, 5);
+      const diode = new DiodeElement(0, 10, 10, 10);
+      const r = new ResistorElement(10, 10, 10, 0, 100);
+      const wire = new WireElement(10, 0, 0, 0);
+      const ground = new GroundElement(0, 10);
+
+      localCircuit.addElement(vs);
+      localCircuit.addElement(diode);
+      localCircuit.addElement(r);
+      localCircuit.addElement(wire);
+      localCircuit.addElement(ground);
+
+      localCircuit.analyzeCircuit();
+
+      expect(localCircuit.circuitNonLinear).toBe(true);
+
+      const result = localCircuit.runStep();
+      expect(result).toBe(true);
+
+      expect(localCircuit.converged).toBe(true);
+    });
+
+    it('handles NaN/Infinity in matrix gracefully', () => {
+      const localCircuit = new Circuit();
+
+      const vs = new VoltageSourceElement(0, 0, 0, 10, 5);
+      const diode = new DiodeElement(0, 10, 10, 10);
+      const r = new ResistorElement(10, 10, 10, 0, 100);
+      const wire = new WireElement(10, 0, 0, 0);
+      const ground = new GroundElement(0, 10);
+
+      localCircuit.addElement(vs);
+      localCircuit.addElement(diode);
+      localCircuit.addElement(r);
+      localCircuit.addElement(wire);
+      localCircuit.addElement(ground);
+
+      localCircuit.analyzeCircuit();
+
+      expect(localCircuit.circuitMatrixSize).toBeGreaterThan(0);
+
+      // Using a nonlinear circuit makes matrix size > 0 because diode makes circuit nonlinear,
+      // which prevents the matrix rows dropping optimization from removing all rows
+      localCircuit.circuitNonLinear = false;
+      localCircuit.circuitMatrix[0][0] = NaN;
+
+      const result = localCircuit.runStep();
+      expect(result).toBe(false);
+      expect(localCircuit.stopMessage).toBe('NaN/infinite matrix!');
+    });
+
+    it('handles singular matrix gracefully for non-linear circuits', () => {
+      const localCircuit = new Circuit();
+
+      const vs = new VoltageSourceElement(0, 0, 0, 10, 5);
+      const diode = new DiodeElement(0, 10, 10, 10);
+      const r = new ResistorElement(10, 10, 10, 0, 100);
+      const wire = new WireElement(10, 0, 0, 0);
+      const ground = new GroundElement(0, 10);
+
+      localCircuit.addElement(vs);
+      localCircuit.addElement(diode);
+      localCircuit.addElement(r);
+      localCircuit.addElement(wire);
+      localCircuit.addElement(ground);
+
+      localCircuit.analyzeCircuit();
+      expect(localCircuit.circuitMatrixSize).toBeGreaterThan(0);
+
+      const luFactorSpy = vi.spyOn(matrix, 'luFactor').mockReturnValue(false);
+
+      const result = localCircuit.runStep();
+
+      expect(result).toBe(false);
+      expect(localCircuit.stopMessage).toBe('Singular matrix!');
+
+      luFactorSpy.mockRestore();
     });
   });
 });
