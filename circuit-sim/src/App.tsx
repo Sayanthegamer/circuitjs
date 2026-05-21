@@ -1,6 +1,17 @@
 /* eslint-disable react-hooks/refs, react-hooks/immutability */
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { Circuit, ResistorElement, VoltageSourceElement, WireElement, GroundElement, CapacitorElement, InductorElement, SwitchElement, DiodeElement, LEDElement } from './engine';
+import { 
+  Circuit, 
+  ResistorElement, 
+  VoltageSourceElement, 
+  WireElement, 
+  GroundElement, 
+  CapacitorElement, 
+  InductorElement, 
+  SwitchElement, 
+  DiodeElement, 
+  LEDElement 
+} from './engine';
 import type { ICircuitElement } from './engine/types';
 import { Camera } from './renderer/camera';
 import { drawGrid, GRID_SIZE } from './renderer/grid';
@@ -8,8 +19,11 @@ import { drawElement } from './renderer/element-renderers';
 import { Toolbar } from './ui/Toolbar';
 import { PropertiesPanel } from './ui/PropertiesPanel';
 import { Plotter, type ProbedItem, type PlotterHandle } from './ui/Plotter';
-import { StatusBar } from './ui/StatusBar';
 import { ComponentPalette } from './ui/ComponentPalette';
+import { SolverMatrixSystem } from './ui/MatrixInspector';
+import ConvergenceSparkline from './ui/ConvergenceSparkline';
+import NodeHUD from './ui/NodeHUD';
+import SideNavBar from './ui/SideNavBar';
 import './App.css';
 import './ui.css';
 
@@ -48,8 +62,15 @@ function App() {
   const [simTime, setSimTime] = useState(0);
   const [stopMessage, setStopMessage] = useState<string | null>(null);
   const [stepsPerFrame, setStepsPerFrame] = useState(0);
-  const [hoverInfo, setHoverInfo] = useState<string | null>(null);
   const [showValues, setShowValues] = useState(true);
+
+  // Live telemetry state for technical whitepaper elements
+  const [matrixG, setMatrixG] = useState<number[][]>([[0]]);
+  const [vectorV, setVectorV] = useState<number[]>([]);
+  const [vectorI, setVectorI] = useState<number[]>([]);
+  const [nrErrors, setNrErrors] = useState<number[]>([]);
+  const [hoveredElm, setHoveredElm] = useState<ICircuitElement | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   // Keep refs in sync with state
   useEffect(() => { simRunningRef.current = simRunning; }, [simRunning]);
@@ -75,26 +96,31 @@ function App() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Build a demo circuit: 5V → R1(1kΩ) → R2(1kΩ) → GND
+    // Build a demo non-linear circuit: AC/DC Voltage Source → Resistor → Diode → Ground
     const circuit = circuitRef.current;
-    // Clear previous elements (handles React StrictMode double-mount)
     circuit.clearElements();
     circuit.stopMessage = null;
 
-    const vs  = new VoltageSourceElement(0, 160, 0, 0, 5);
-    const r1  = new ResistorElement(0, 0, 160, 0, 1000);
-    const r2  = new ResistorElement(160, 0, 160, 160, 1000);
-    const w1  = new WireElement(160, 160, 0, 160);
-    const gnd = new GroundElement(0, 160);
+    const vs    = new VoltageSourceElement(0, 160, 0, 0, 5);
+    const r1    = new ResistorElement(0, 0, 160, 0, 1000);
+    const diode = new DiodeElement(160, 0, 160, 160);
+    const w1    = new WireElement(160, 160, 0, 160);
+    const gnd   = new GroundElement(0, 160);
 
     circuit.addElement(vs);
     circuit.addElement(r1);
-    circuit.addElement(r2);
+    circuit.addElement(diode);
     circuit.addElement(w1);
     circuit.addElement(gnd);
 
     circuit.analyzeCircuit();
 
+    // Auto-probe the diode voltage and current to boot-start the Plotter beautifully
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setProbedItems([
+      { id: `${diode.id}_Vdiff`, elmId: diode.id, prop: 'Vdiff', color: '#6366f1' },
+      { id: `${diode.id}_I`, elmId: diode.id, prop: 'I', color: '#ffee64' }
+    ]);
 
     // Center camera on the circuit
     const cam = cameraRef.current;
@@ -232,12 +258,34 @@ function App() {
         plotterRef.current.pushData(circuit.t, values);
       }
 
-      // Update UI state at ~4Hz to avoid excessive re-renders
+      // Update UI telemetry at ~4Hz to avoid excessive re-renders
       uiUpdateCounter.current++;
       if (uiUpdateCounter.current % 15 === 0) {
         setSimTime(circuit.t);
         setStepsPerFrame(steps);
         setStopMessage(circuit.stopMessage);
+
+        // Feed matrix telemetry safely
+        if (circuit.lastG && circuit.lastG.length > 0) {
+          setMatrixG(circuit.lastG.map(row => [...row]));
+        } else {
+          setMatrixG([[0]]);
+        }
+        if (circuit.lastV && circuit.lastV.length > 0) {
+          setVectorV([...circuit.lastV]);
+        } else {
+          setVectorV([]);
+        }
+        if (circuit.lastI && circuit.lastI.length > 0) {
+          setVectorI([...circuit.lastI]);
+        } else {
+          setVectorI([]);
+        }
+        if (circuit.lastErrors && circuit.lastErrors.length > 0) {
+          setNrErrors([...circuit.lastErrors]);
+        } else {
+          setNrErrors([]);
+        }
       }
 
       rafRef.current = requestAnimationFrame(render);
@@ -327,7 +375,6 @@ function App() {
         } else {
           setSelectedId(null);
           // Start panning on empty space with select tool
-          // Always start panning with fresh coordinates
           cameraRef.current.startPan(e.clientX - rect.left, e.clientY - rect.top);
         }
       } else if (tool === 'ground') {
@@ -359,6 +406,9 @@ function App() {
       activePointers.current.set(e.pointerId, e);
     }
 
+    // Track mouse coordinates for NodeHUD
+    setMousePos({ x: e.clientX, y: e.clientY });
+
     if (activePointers.current.size === 2) {
       // Two-finger Pan & Zoom
       const pointers = Array.from(activePointers.current.values());
@@ -375,7 +425,6 @@ function App() {
       if (lastPinchDist.current !== null) {
          const delta = dist - lastPinchDist.current;
          if (Math.abs(delta) > 0.5) { // small threshold
-             // call handleTouchZoom
              cameraRef.current.handleTouchZoom(delta, midX, midY);
          }
       }
@@ -390,10 +439,8 @@ function App() {
     }
 
     // Single pointer move
-
     // Panning
     if (cameraRef.current.panning) {
-      // Don't process single-pointer pan if we have more than 1 pointer to avoid wild jumps
       if (activePointers.current.size === 1 || e.pointerType === 'mouse') {
         cameraRef.current.updatePan(e.clientX - rect.left, e.clientY - rect.top);
       }
@@ -404,11 +451,9 @@ function App() {
     if (placing && placing.phase === 'second') {
       const world = getWorldPos(e);
       let yOffset = 0;
-      // Fat finger offset on coarse pointer devices
       if (window.matchMedia('(pointer: coarse)').matches) {
-          yOffset = -40; // pixel offset
+          yOffset = -40; // coarse pointer fat-finger offset
       }
-      // re-calculate world position if there is an offset
       let finalWorld = world;
       if (yOffset !== 0) {
           finalWorld = cameraRef.current.screenToWorld(
@@ -422,7 +467,7 @@ function App() {
       return;
     }
 
-    // Hover info
+    // Hover info & element tracking for NodeHUD
     if (tool === 'select') {
       const world = getWorldPos(e);
       const circuit = circuitRef.current;
@@ -433,37 +478,28 @@ function App() {
         if (d < bestDist) { bestDist = d; found = elm; }
       }
       if (found) {
-        const v = found.volts;
-        const i = found.getCurrent();
-        let info = `${found.type}`;
-        if (found.type === 'resistor') info += ` ${(found as ResistorElement).resistance}Ω`;
-        if (found.type === 'voltage') info += ` ${(found as VoltageSourceElement).maxVoltage}V`;
-        info += ` | V: ${v[0]?.toFixed(2)}→${v[1]?.toFixed(2)}V | I: ${(i * 1000).toFixed(3)}mA`;
-        setHoverInfo(info);
+        setHoveredElm(found);
       } else {
-        setHoverInfo(null);
+        setHoveredElm(null);
       }
+    } else {
+      setHoveredElm(null);
     }
   }, [placing, getWorldPos, tool]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    // Remove pointer from tracking cache
     activePointers.current.delete(e.pointerId);
 
-    // If we drop below 2 fingers, cancel the pinch-to-zoom state
     if (activePointers.current.size < 2) {
       lastPinchDist.current = null;
     }
 
-    // End panning if we drop below 2 fingers on touch, or middle/right click ends
     if (e.pointerType === 'mouse' && (e.button === 1 || e.button === 2)) {
       cameraRef.current.endPan();
       return;
     } else if (activePointers.current.size === 0 && cameraRef.current.panning) {
       cameraRef.current.endPan();
     } else if (activePointers.current.size === 1 && cameraRef.current.panning) {
-      // If we dropped from 2 fingers to 1 finger, we must reset the pan starting coordinate
-      // or end panning entirely to prevent a jump. Let's just end panning. The user can tap again to pan.
       cameraRef.current.endPan();
     }
 
@@ -474,7 +510,6 @@ function App() {
       const x2 = snapped.x;
       const y2 = snapped.y;
 
-      // Don't create zero-length elements
       if (x2 === placing.x1 && y2 === placing.y1) {
         setPlacing(null);
         return;
@@ -492,11 +527,11 @@ function App() {
           break;
         case 'capacitor':
           newElm = new CapacitorElement(placing.x1, placing.y1, x2, y2);
-          (newElm as CapacitorElement).capacitance = 1e-3; // 1mF for visible animation
+          (newElm as CapacitorElement).capacitance = 1e-3;
           break;
         case 'inductor':
           newElm = new InductorElement(placing.x1, placing.y1, x2, y2);
-          (newElm as InductorElement).inductance = 1; // 1H
+          (newElm as InductorElement).inductance = 1;
           break;
         case 'switch':
           newElm = new SwitchElement(placing.x1, placing.y1, x2, y2);
@@ -605,8 +640,8 @@ function App() {
   }, [selectedElm]);
 
   return (
-    <div className="app">
-      {/* Toolbar */}
+    <div className="flex flex-col h-screen bg-surface-dim text-text-primary overflow-hidden font-sans">
+      {/* Top Toolbar */}
       <Toolbar
         tool={tool}
         setTool={setTool}
@@ -617,68 +652,216 @@ function App() {
         selectedId={selectedId}
         showValues={showValues}
         setShowValues={setShowValues}
+        simTime={simTime}
+        stopMessage={stopMessage}
       />
 
-      <div className="main-content">
-        <ComponentPalette tool={tool} setTool={setTool} />
-
-        <div className="workspace">
-          {/* Canvas */}
-          <div className="canvas-container" ref={containerRef}>
-          <canvas
-            ref={canvasRef}
-            className="circuit-canvas"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            onPointerOut={handlePointerUp}
-            onWheel={handleWheel}
-            onContextMenu={handleContextMenu}
-            style={{ cursor: tool === 'select' ? ( cameraRef.current.panning ? 'grabbing' : 'default') : 'crosshair' }}
-          />
-
-          {/* Hover tooltip */}
-          {hoverInfo && (
-            <div className="hover-tooltip">
-              {hoverInfo}
+      <div className="flex flex-1 overflow-hidden pt-[46px]">
+        {/* Left Sidebar (Documentation Navigation & Component Palette) */}
+        <aside className="w-[280px] flex-shrink-0 border-r border-border-hairline bg-surface flex flex-col h-full overflow-hidden">
+          <SideNavBar />
+          <div className="flex-1 overflow-y-auto border-t border-border-hairline">
+            <div className="px-4 py-2.5 text-[9px] uppercase tracking-[0.2em] text-text-muted font-bold font-mono">
+              Component Palette
             </div>
-          )}
-        </div>
-        
-        <Plotter ref={plotterRef} items={probedItems} />
-        </div>
-
-        {/* Status bar */}
-        <StatusBar 
-          simRunning={simRunning}
-          stopMessage={stopMessage}
-          simTime={simTime}
-          stepsPerFrame={stepsPerFrame}
-        />
-
-        {/* Tool hint */}
-        {tool !== 'select' && (
-          <div className="tool-hint">
-            {tool === 'ground'
-              ? 'Click to place ground'
-              : `Click and drag to place ${tool}`
-            } · Press Esc to cancel
+            <ComponentPalette tool={tool} setTool={setTool} />
           </div>
-        )}
+        </aside>
+
+        {/* Main Document Content Area */}
+        <main className="flex-1 overflow-y-auto bg-surface-dim relative scroll-smooth no-scrollbar">
+          <div className="max-w-[1000px] mx-auto px-8 md:px-12 py-16 text-left">
+            
+            {/* Section 1: Introduction */}
+            <section id="intro" className="mb-16 scroll-mt-20">
+              <header className="mb-8">
+                <div className="text-accent font-mono text-[10px] mb-3 uppercase tracking-[0.3em]">Documentation / 1.0 Overview</div>
+                <h1 className="text-4xl font-bold tracking-tight mb-4 bg-gradient-to-r from-white to-text-secondary bg-clip-text text-transparent">
+                  Precision Schematic Simulator
+                </h1>
+                <p className="text-text-secondary text-lg leading-relaxed max-w-3xl">
+                  Welcome to the CircuitSim interactive schematic whitepaper. This document functions as both a technical report and an active engineering workstation. The schematic figure embedded below operates in real-time using a direct transient solver.
+                </p>
+              </header>
+            </section>
+
+            {/* Section 2: Simulation Loop */}
+            <section id="sim-loop" className="mb-16 scroll-mt-20">
+              <article className="prose prose-invert max-w-none">
+                <h2 className="text-2xl font-semibold mb-4 flex items-center gap-3">
+                  <span className="text-accent text-sm font-mono">2.0</span>
+                  Transient Analysis & Companion Models
+                </h2>
+                <p className="text-text-secondary mb-6 leading-relaxed">
+                  For transient analysis, time-varying components (such as capacitors and inductors) are discretized using numerical integration methods. The standard engine uses the **Trapezoidal Rule** to map differential equations into algebraic equivalents at each timestep <span className="font-mono text-accent">dt</span>.
+                </p>
+
+                <div className="bg-surface-bright/20 border border-border-hairline rounded-sm p-5 font-mono text-xs mb-8 overflow-x-auto relative">
+                  <div className="absolute top-0 right-0 p-2 text-[8px] text-text-muted uppercase font-bold tracking-widest opacity-40">transient_kernel.ts</div>
+                  <pre className="text-text-secondary leading-relaxed">
+                    <code>{`export function stepTransient(sim: SimulationState, dt: number): void {
+  // Discretize and stamp reactive companion models
+  sim.components.forEach(c => {
+    if (c.isReactive) {
+      c.stampCompanionModel(sim.matrix, dt, sim.previousVoltages);
+    }
+  });
+}`}</code>
+                  </pre>
+                </div>
+              </article>
+            </section>
+
+            {/* Section 3: Matrix Math / solver */}
+            <section id="matrix-math" className="mb-16 scroll-mt-20">
+              <header className="mb-6">
+                <div className="text-accent font-mono text-[10px] mb-3 uppercase tracking-[0.3em]">Documentation / 3.0 Solver Matrices</div>
+                <h2 className="text-2xl font-semibold mb-4 flex items-center gap-3">
+                  <span className="text-accent text-sm font-mono">3.0</span>
+                  Modified Nodal Analysis & Newton-Raphson
+                </h2>
+                <p className="text-text-secondary leading-relaxed">
+                  The core engine formulates circuit equations via **Modified Nodal Analysis (MNA)**. This approach produces a system of equations in the form:
+                </p>
+                <div className="my-4 pl-4 border-l-2 border-primary/40 font-mono text-text-primary text-sm">
+                  [G] · [v] = [i]
+                </div>
+                <p className="text-text-secondary leading-relaxed">
+                  Where <span className="font-mono bg-surface-bright px-1.5 py-0.5 rounded text-xs text-primary border border-border-hairline">[G]</span> is the conductance matrix, <span className="font-mono bg-surface-bright px-1.5 py-0.5 rounded text-xs text-primary border border-border-hairline">[v]</span> is the node voltage vector, and <span className="font-mono bg-surface-bright px-1.5 py-0.5 rounded text-xs text-primary border border-border-hairline">[i]</span> is the source vector.
+                </p>
+                <p className="text-text-secondary mt-4 leading-relaxed">
+                  For circuits containing non-linear elements (like diodes), the solver iteratively linearizes each component around its operating point using the **Newton-Raphson method**, converging until the voltage step size falls below <span className="font-mono text-accent">1e-6</span>.
+                </p>
+              </header>
+
+              {/* Interactive Telemetry Diagnostics Widgets */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <SolverMatrixSystem G={matrixG} v={vectorV} i={vectorI} />
+                <ConvergenceSparkline errors={nrErrors} />
+              </div>
+
+              {/* Active Schematic Canvas Figure */}
+              <div className="flex flex-col gap-1.5 mb-8">
+                <div className="flex justify-between items-end">
+                  <span className="text-[9px] font-mono text-text-muted uppercase tracking-widest">Figure 3.1: Active schematic & live solver environment</span>
+                  <div className="flex gap-2">
+                    <span className="text-[8px] font-mono px-2 py-0.5 rounded bg-instrument-voltage/10 text-instrument-voltage border border-instrument-voltage/20 uppercase animate-pulse">Live Feed</span>
+                  </div>
+                </div>
+
+                <div 
+                  className="canvas-container aspect-video w-full shadow-[0_32px_64px_-12px_rgba(0,0,0,0.6)] relative group" 
+                  ref={containerRef}
+                >
+                  <canvas
+                    ref={canvasRef}
+                    className="circuit-canvas"
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerUp}
+                    onPointerOut={handlePointerUp}
+                    onPointerLeave={() => setHoveredElm(null)}
+                    onWheel={handleWheel}
+                    onContextMenu={handleContextMenu}
+                    style={{ cursor: tool === 'select' ? ( cameraRef.current.panning ? 'grabbing' : 'default') : 'crosshair' }}
+                  />
+
+                  {/* Float HUD card on hovered element */}
+                  <NodeHUD elm={hoveredElm} position={mousePos} />
+
+                  {/* Canvas Overlay Telemetry HUD */}
+                  <div className="absolute top-6 left-6 pointer-events-none">
+                    <div className="bg-surface-dim/85 backdrop-blur-md border border-border-hairline p-3 rounded-none text-[10px] font-mono flex flex-col gap-2 min-w-[145px]">
+                      <div className="flex justify-between border-b border-border-hairline pb-1">
+                        <span className="text-text-muted">ENGINE_STATUS</span> 
+                        <span className="text-instrument-current font-bold">{simRunning ? 'RUNNING' : 'PAUSED'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-text-muted">TIME_STEP</span> 
+                        <span className="text-text-secondary">0.001s</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-text-muted">SOLVER_METH</span> 
+                        <span className="text-text-secondary">TRAPEZOIDAL</span>
+                      </div>
+                      {stepsPerFrame > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-text-muted">SOLVER_STEPS</span> 
+                          <span className="text-instrument-voltage font-bold">{stepsPerFrame}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Section 4: Component Reference */}
+            <section id="comp-ref" className="mb-16 scroll-mt-20">
+              <article className="prose prose-invert max-w-none">
+                <h2 className="text-2xl font-semibold mb-4 flex items-center gap-3">
+                  <span className="text-accent text-sm font-mono">4.0</span>
+                  Component Reference & Equations
+                </h2>
+                <p className="text-text-secondary mb-6 leading-relaxed">
+                  Every circuit component translates to specific mathematical equations within the solver loop:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono text-text-secondary">
+                  <div className="p-4 border border-border-hairline bg-surface/30">
+                    <div className="text-text-primary font-bold mb-1">Resistor</div>
+                    <div>Ohm's Law: V = I · R</div>
+                    <div className="mt-1 opacity-70">Stamps 1/R into diagonal coefficients of [G]</div>
+                  </div>
+                  <div className="p-4 border border-border-hairline bg-surface/30">
+                    <div className="text-text-primary font-bold mb-1">Diode / LED</div>
+                    <div>Shockley equation: I = I_s · (e^(V_d / (n·V_t)) - 1)</div>
+                    <div className="mt-1 opacity-70">Stamps dynamic conductance G_eq and current source I_eq during NR iterations</div>
+                  </div>
+                  <div className="p-4 border border-border-hairline bg-surface/30">
+                    <div className="text-text-primary font-bold mb-1">Capacitor</div>
+                    <div>I = C · dV/dt (Trapezoidal integration)</div>
+                    <div className="mt-1 opacity-70">Companion model: G_eq = 2C/dt, parallel current source</div>
+                  </div>
+                  <div className="p-4 border border-border-hairline bg-surface/30">
+                    <div className="text-text-primary font-bold mb-1">Inductor</div>
+                    <div>V = L · dI/dt (Trapezoidal integration)</div>
+                    <div className="mt-1 opacity-70">Companion model: R_eq = 2L/dt, series voltage source</div>
+                  </div>
+                </div>
+              </article>
+            </section>
+
+            {/* Quick hint instructions for placing/deleting */}
+            {tool !== 'select' && (
+              <div className="fixed bottom-[240px] left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-surface border border-border-hairline text-xs font-mono text-text-primary shadow-xl">
+                {tool === 'ground'
+                  ? 'Click canvas to place ground reference node'
+                  : `Click and drag on canvas to place ${tool}`
+                } · Press <kbd className="bg-surface-bright px-1 py-0.5 text-[10px] border border-border-hairline">Esc</kbd> to cancel
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* Right Sidebar: Properties Panel */}
+        <aside className="w-[320px] flex-shrink-0 border-l border-border-hairline bg-surface flex flex-col h-full overflow-y-auto no-scrollbar">
+          <PropertiesPanel 
+            selectedElm={selectedElm} 
+            handlePropChange={handlePropChange} 
+            probedItems={probedItems}
+            setProbedItems={setProbedItems}
+          />
+        </aside>
       </div>
 
-      {/* Properties Panel */}
-      <PropertiesPanel 
-        selectedElm={selectedElm} 
-        handlePropChange={handlePropChange} 
-        probedItems={probedItems}
-        setProbedItems={setProbedItems}
-      />
+      {/* Bottom Panel: Oscilloscope View */}
+      <footer className="h-[220px] border-t border-border-hairline bg-surface-dim z-40 relative flex-shrink-0">
+        <Plotter ref={plotterRef} items={probedItems} />
+      </footer>
     </div>
   );
 }
-
 
 // --- Utility: distance from a point to an element's body ---
 function distToElement(px: number, py: number, elm: ICircuitElement): number {

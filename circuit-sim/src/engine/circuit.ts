@@ -21,6 +21,18 @@ interface WireInfo {
   post: number;
 }
 
+interface WireTreeNode {
+  node: string;
+  edgeToParent: { wire: WireElement; isForward: boolean } | null;
+  children: WireTreeNode[];
+}
+
+interface WireNodeData {
+  inNode: number;
+  wires: { wire: WireElement; isForward: boolean; isChord?: boolean }[];
+  nonWireContributors: { element: ICircuitElement; post: number }[];
+}
+
 /**
  * The Circuit class manages the entire simulation state:
  * node list, element list, MNA matrix, and solver.
@@ -38,6 +50,12 @@ export class Circuit implements IStamper {
   origMatrix: number[][] = [];
   origRightSide: Float64Array = new Float64Array(0);
   floatingNodes: number[] = [];
+
+  // Wire graph state
+  _wireForest?: WireTreeNode[];
+  _wireNodesData?: Map<string, WireNodeData>;
+
+  // Info
   circuitPermute: number[] = [];
   circuitRowInfo: RowInfo[] = [];
   circuitMatrixSize = 0;
@@ -61,6 +79,12 @@ export class Circuit implements IStamper {
   converged = false;
   subIterations = 0;
   isBackwardEuler = true;
+
+  // Telemetry variables for the MatrixInspector / Solver visualizer
+  lastG: number[][] = [];
+  lastI: number[] = [];
+  lastV: number[] = [];
+  lastErrors: number[] = [];
 
   get nodeCount(): number { return this.nodeList.length; }
 
@@ -182,7 +206,13 @@ export class Circuit implements IStamper {
    * Called whenever the circuit topology changes.
    */
   analyzeCircuit(): void {
-    if (this.elements.length === 0) return;
+    if (this.elements.length === 0) {
+      this.lastG = [];
+      this.lastI = [];
+      this.lastV = [];
+      this.lastErrors = [];
+      return;
+    }
 
     this.stopMessage = null;
     this.isBackwardEuler = true;
@@ -398,12 +428,12 @@ export class Circuit implements IStamper {
 
     // DFS to find Spanning Tree and identify chord edges
     const visitedNodes = new Set<string>();
-    const dfsForest: { node: string, edgeToParent: { wire: WireElement, isForward: boolean } | null, children: any[] }[] = [];
+    const dfsForest: WireTreeNode[] = [];
 
-    const buildDFS = (nodeKey: string, parentEdge: { wire: WireElement, isForward: boolean } | null) => {
+    const buildDFS = (nodeKey: string, parentEdge: { wire: WireElement, isForward: boolean } | null): WireTreeNode => {
       visitedNodes.add(nodeKey);
       const nodeData = wireNodes.get(nodeKey)!;
-      const treeNode = { node: nodeKey, edgeToParent: parentEdge, children: [] as any[] };
+      const treeNode: WireTreeNode = { node: nodeKey, edgeToParent: parentEdge, children: [] };
 
       for (const edge of nodeData.wires) {
         if (parentEdge && edge.wire === parentEdge.wire) continue;
@@ -432,8 +462,8 @@ export class Circuit implements IStamper {
     }
 
     // Save the traversal data for calcWireCurrents
-    (this as any)._wireForest = dfsForest;
-    (this as any)._wireNodesData = wireNodes;
+    this._wireForest = dfsForest;
+    this._wireNodesData = wireNodes;
   }
 
 
@@ -628,14 +658,25 @@ export class Circuit implements IStamper {
     for (const ce of this.elements) ce.startIteration();
 
     const maxSubIter = this.circuitNonLinear ? 5000 : 1;
+    this.lastErrors = [];
 
     for (let subiter = 0; subiter < maxSubIter; subiter++) {
       if (this.circuitNonLinear && this.converged && subiter > 0) {
         break;
       }
 
+      const prevVoltages = Array.from(this.nodeVoltages);
+
       if (!this.runSubIteration(subiter)) {
         return false;
+      }
+
+      if (this.circuitNonLinear) {
+        let maxDiff = 0;
+        for (let j = 0; j < this.nodeVoltages.length; j++) {
+          maxDiff = Math.max(maxDiff, Math.abs(this.nodeVoltages[j] - (prevVoltages[j] || 0)));
+        }
+        this.lastErrors.push(maxDiff);
       }
 
       if (!this.circuitNonLinear) break;
@@ -682,6 +723,14 @@ export class Circuit implements IStamper {
       return false;
     }
 
+    // Capture telemetry before factorization
+    if (this.circuitNonLinear) {
+      this.lastG = this.circuitMatrix.map(row => [...row]);
+    } else {
+      this.lastG = this.origMatrix.map(row => [...row]);
+    }
+    this.lastI = Array.from(this.circuitRightSide);
+
     // Factor and solve
     if (this.circuitNonLinear) {
       if (!luFactor(this.circuitMatrix, this.circuitMatrixSize, this.circuitPermute)) {
@@ -691,6 +740,7 @@ export class Circuit implements IStamper {
     }
 
     luSolve(this.circuitMatrix, this.circuitMatrixSize, this.circuitPermute, this.circuitRightSide);
+    this.lastV = Array.from(this.circuitRightSide);
     this.applySolvedRightSide(this.circuitRightSide);
 
     return true;
@@ -747,12 +797,12 @@ export class Circuit implements IStamper {
   }
 
   private calcWireCurrents(): void {
-    if (!(this as any)._wireForest) return;
-    const forest = (this as any)._wireForest;
-    const wireNodesData = (this as any)._wireNodesData as Map<string, any>;
+    if (!this._wireForest || !this._wireNodesData) return;
+    const forest = this._wireForest;
+    const wireNodesData = this._wireNodesData;
 
     // Post-order traversal to compute currents from leaves up to roots
-    const computeCurrents = (treeNode: any): number => {
+    const computeCurrents = (treeNode: WireTreeNode): number => {
       let totalCurrent = 0;
       for (const contributor of wireNodesData.get(treeNode.node)!.nonWireContributors) {
         totalCurrent += contributor.element.getCurrentIntoNode(contributor.post);

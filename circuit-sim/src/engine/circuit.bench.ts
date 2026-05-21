@@ -6,8 +6,8 @@ describe('Circuit Element Lookup Performance', () => {
   const setupCircuit = (size: number) => {
     const circuit = new Circuit();
     for (let i = 0; i < size; i++) {
-      const el = new ResistorElement(0, 0, 10, 10, 1000) as any;
-      el.id = `r${i}`;
+      const el = new ResistorElement(0, 0, 10, 10, 1000);
+      Object.assign(el, { id: `r${i}` });
       circuit.addElement(el);
     }
     return circuit;
