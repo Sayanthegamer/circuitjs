@@ -4,8 +4,6 @@
 
 import type { ICircuitElement, IStamper, Point, ElementId } from '../types';
 
-let nextId = 0;
-
 export abstract class CircuitElement implements ICircuitElement {
   id: ElementId;
   x: number;
@@ -21,7 +19,9 @@ export abstract class CircuitElement implements ICircuitElement {
   protected voltSource = -1;
 
   constructor(x: number, y: number, x2?: number, y2?: number) {
-    this.id = `elm_${nextId++}`;
+    this.id = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? `elm_${crypto.randomUUID()}`
+      : `elm_${Math.random().toString(36).substring(2, 11)}_${Date.now().toString(36)}`;
     this.x = x;
     this.y = y;
     this.x2 = x2 ?? x;

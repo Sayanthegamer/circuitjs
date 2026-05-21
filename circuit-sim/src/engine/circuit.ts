@@ -86,6 +86,45 @@ export class Circuit implements IStamper {
   lastV: number[] = [];
   lastErrors: number[] = [];
 
+  // Spatial Index for fast hit testing (P3)
+  private spatialGrid = new Map<string, ICircuitElement[]>();
+  private readonly CELL_SIZE = 100;
+  private readonly INDEX_EXPANSION = 20;
+
+  rebuildSpatialIndex(): void {
+    this.spatialGrid.clear();
+    for (const elm of this.elements) {
+      const minX = Math.min(elm.x, elm.x2);
+      const maxX = Math.max(elm.x, elm.x2);
+      const minY = Math.min(elm.y, elm.y2);
+      const maxY = Math.max(elm.y, elm.y2);
+
+      const cellXMin = Math.floor((minX - this.INDEX_EXPANSION) / this.CELL_SIZE);
+      const cellXMax = Math.floor((maxX + this.INDEX_EXPANSION) / this.CELL_SIZE);
+      const cellYMin = Math.floor((minY - this.INDEX_EXPANSION) / this.CELL_SIZE);
+      const cellYMax = Math.floor((maxY + this.INDEX_EXPANSION) / this.CELL_SIZE);
+
+      for (let cx = cellXMin; cx <= cellXMax; cx++) {
+        for (let cy = cellYMin; cy <= cellYMax; cy++) {
+          const key = `${cx},${cy}`;
+          let list = this.spatialGrid.get(key);
+          if (!list) {
+            list = [];
+            this.spatialGrid.set(key, list);
+          }
+          list.push(elm);
+        }
+      }
+    }
+  }
+
+  getElementsByPosition(px: number, py: number): ICircuitElement[] {
+    const cx = Math.floor(px / this.CELL_SIZE);
+    const cy = Math.floor(py / this.CELL_SIZE);
+    const key = `${cx},${cy}`;
+    return this.spatialGrid.get(key) || [];
+  }
+
   get nodeCount(): number { return this.nodeList.length; }
 
   // ==============================================================
@@ -230,6 +269,7 @@ export class Circuit implements IStamper {
       this.circuitRightSide = new Float64Array(0);
       this.origMatrix = [];
       this.origRightSide = new Float64Array(0);
+      this.spatialGrid.clear();
       return;
     }
 
@@ -271,6 +311,9 @@ export class Circuit implements IStamper {
     // Step 7: Stamp the matrix
     this.timeStep = this.maxTimeStep;
     this.stampCircuit();
+
+    // Rebuild spatial index
+    this.rebuildSpatialIndex();
   }
 
   private calculateWireClosure(): void {

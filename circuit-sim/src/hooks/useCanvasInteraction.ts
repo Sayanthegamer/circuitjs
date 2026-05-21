@@ -127,7 +127,8 @@ export function useCanvasInteraction(
         let found: ICircuitElement | null = null;
         let bestDist = 20;
 
-        for (const elm of circuit.elements) {
+        const candidates = circuit.getElementsByPosition(world.x, world.y);
+        for (const elm of candidates) {
           const d = distToElement(world.x, world.y, elm);
           if (d < bestDist) {
             bestDist = d;
@@ -256,7 +257,8 @@ export function useCanvasInteraction(
       const world = getWorldPos(e);
       let found: ICircuitElement | null = null;
       let bestDist = 15;
-      for (const elm of circuit.elements) {
+      const candidates = circuit.getElementsByPosition(world.x, world.y);
+      for (const elm of candidates) {
         const d = distToElement(world.x, world.y, elm);
         if (d < bestDist) { bestDist = d; found = elm; }
       }
