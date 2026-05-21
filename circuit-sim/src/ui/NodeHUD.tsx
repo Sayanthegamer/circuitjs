@@ -1,12 +1,10 @@
 import React from 'react';
-import type { ICircuitElement } from '../engine/types';
+import { useUIStore } from '../stores/uiStore';
 
-interface NodeHUDProps {
-  elm: ICircuitElement | null;
-  position: { x: number; y: number };
-}
+const NodeHUD: React.FC = () => {
+  const elm = useUIStore((s) => s.hoveredElm);
+  const position = useUIStore((s) => s.mousePos);
 
-const NodeHUD: React.FC<NodeHUDProps> = ({ elm, position }) => {
   if (!elm) return null;
 
   // Formatting helper for engineering notation

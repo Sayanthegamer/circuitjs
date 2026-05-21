@@ -1,36 +1,36 @@
-import type { ICircuitElement } from '../engine/types';
-import type { ResistorElement, VoltageSourceElement, CapacitorElement, InductorElement, SwitchElement } from '../engine';
+import type {
+  ResistorElement,
+  VoltageSourceElement,
+  CapacitorElement,
+  InductorElement,
+  SwitchElement,
+} from '../engine';
 import { voltageToColor } from '../renderer/voltage-colors';
-import { type ProbedItem } from './Plotter';
+import { useCircuitStore } from '../stores/circuitStore';
+import { useUIStore } from '../stores/uiStore';
 import { X } from 'lucide-react';
 
-interface PropertiesPanelProps {
-  selectedElm: ICircuitElement | null;
-  handlePropChange: (prop: string, value: number) => void;
-  probedItems: ProbedItem[];
-  setProbedItems: (items: ProbedItem[]) => void;
-  onClose?: () => void;
-}
+export function PropertiesPanel() {
+  const selectedId = useUIStore((s) => s.selectedId);
+  const setSelectedId = useUIStore((s) => s.setSelectedId);
+  const circuit = useCircuitStore((s) => s.circuit);
+  const probedItems = useCircuitStore((s) => s.probedItems);
+  const setProbedItems = useCircuitStore((s) => s.setProbedItems);
 
-export function PropertiesPanel({ 
-  selectedElm, 
-  handlePropChange, 
-  probedItems, 
-  setProbedItems,
-  onClose
-}: PropertiesPanelProps) {
+  const selectedElm = selectedId ? circuit.getElement(selectedId) ?? null : null;
+
   if (!selectedElm) {
     return (
       <div className="p-6 h-full flex flex-col items-center justify-center text-center opacity-40 select-none">
         <i className="material-icons text-4xl mb-4 text-text-muted">settings_input_component</i>
         <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-text-muted leading-relaxed">
-          Select a component<br/>to inspect
+          Select a component<br />to inspect
         </p>
       </div>
     );
   }
 
-  const isProbed = (prop: 'V1' | 'V2' | 'I' | 'Vdiff') => 
+  const isProbed = (prop: 'V1' | 'V2' | 'I' | 'Vdiff') =>
     probedItems.some(p => p.elmId === selectedElm.id && p.prop === prop);
 
   const toggleProbe = (prop: 'V1' | 'V2' | 'I' | 'Vdiff') => {
@@ -48,6 +48,25 @@ export function PropertiesPanel({
     }
   };
 
+  const handlePropChange = (prop: string, value: number) => {
+    if (selectedElm.type === 'resistor' && prop === 'resistance') {
+      (selectedElm as ResistorElement).resistance = value;
+    } else if (selectedElm.type === 'voltage' && prop === 'voltage') {
+      (selectedElm as VoltageSourceElement).maxVoltage = value;
+    } else if (selectedElm.type === 'capacitor' && prop === 'capacitance') {
+      (selectedElm as CapacitorElement).capacitance = value;
+    } else if (selectedElm.type === 'inductor' && prop === 'inductance') {
+      (selectedElm as InductorElement).inductance = value;
+    } else if (selectedElm.type === 'switch' && prop === 'closed') {
+      (selectedElm as SwitchElement).closed = value === 1;
+    }
+    circuit.analyzeCircuit();
+  };
+
+  const handleClose = () => {
+    setSelectedId(null);
+  };
+
   return (
     <div className="flex flex-col h-full bg-surface text-text-primary border-l border-border-hairline select-none">
       {/* Header */}
@@ -56,15 +75,13 @@ export function PropertiesPanel({
           <div className="w-1.5 h-1.5 bg-primary shadow-[0_0_8px_rgba(99,102,241,0.8)]"></div>
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-primary">Properties</span>
         </div>
-        {onClose && (
-          <button 
-            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
-            onClick={onClose}
-            aria-label="Close properties"
-          >
-            <X size={14} />
-          </button>
-        )}
+        <button
+          className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
+          onClick={handleClose}
+          aria-label="Close properties"
+        >
+          <X size={14} />
+        </button>
       </div>
 
       {/* Main Content Area */}
@@ -89,7 +106,7 @@ export function PropertiesPanel({
             <i className="material-icons text-[12px] text-text-muted">tune</i>
             <span className="text-[9px] text-text-muted uppercase font-bold tracking-widest">Parameters</span>
           </div>
-          
+
           <div className="space-y-4">
             {selectedElm.type === 'resistor' && (
               <div className="space-y-1.5 group">
@@ -179,7 +196,7 @@ export function PropertiesPanel({
                 </span>
                 <button
                   onClick={() => handlePropChange('closed', (selectedElm as SwitchElement).closed ? 0 : 1)}
-                  className={`w-14 h-6 border flex items-center justify-center transition-all focus:outline-none ${
+                  className={`w-14 h-6 border flex items-center justify-center transition-all focus:outline-none cursor-pointer ${
                     (selectedElm as SwitchElement).closed
                       ? 'bg-primary border-primary text-white font-bold'
                       : 'bg-surface-dim border-border-hairline text-text-secondary hover:text-text-primary'
@@ -209,20 +226,20 @@ export function PropertiesPanel({
             <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
               <div className="flex flex-col gap-0.5">
                 <span className="text-[8px] text-text-muted uppercase font-bold">Node V₁</span>
-                <button 
+                <button
                   onClick={() => toggleProbe('V1')}
-                  className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors ${
+                  className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
                     isProbed('V1') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
                   }`}
                 >
                   <i className="material-icons text-[10px]">
                     {isProbed('V1') ? 'check_circle' : 'add_circle_outline'}
-                  </i> 
+                  </i>
                   {isProbed('V1') ? 'Probed' : 'Probe'}
                 </button>
               </div>
-              <span 
-                className="font-mono text-xs font-bold tabular-nums" 
+              <span
+                className="font-mono text-xs font-bold tabular-nums"
                 style={{ color: voltageToColor(selectedElm.volts[0] || 0) }}
               >
                 {(selectedElm.volts[0] || 0).toFixed(3)} V
@@ -233,20 +250,20 @@ export function PropertiesPanel({
             <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
               <div className="flex flex-col gap-0.5">
                 <span className="text-[8px] text-text-muted uppercase font-bold">Node V₂</span>
-                <button 
+                <button
                   onClick={() => toggleProbe('V2')}
-                  className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors ${
+                  className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
                     isProbed('V2') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
                   }`}
                 >
                   <i className="material-icons text-[10px]">
                     {isProbed('V2') ? 'check_circle' : 'add_circle_outline'}
-                  </i> 
+                  </i>
                   {isProbed('V2') ? 'Probed' : 'Probe'}
                 </button>
               </div>
-              <span 
-                className="font-mono text-xs font-bold tabular-nums" 
+              <span
+                className="font-mono text-xs font-bold tabular-nums"
                 style={{ color: voltageToColor(selectedElm.volts[1] || 0) }}
               >
                 {(selectedElm.volts[1] || 0).toFixed(3)} V
@@ -257,20 +274,20 @@ export function PropertiesPanel({
             <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
               <div className="flex flex-col gap-0.5">
                 <span className="text-[8px] text-text-muted uppercase font-bold">ΔV (V_drop)</span>
-                <button 
+                <button
                   onClick={() => toggleProbe('Vdiff')}
-                  className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors ${
+                  className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
                     isProbed('Vdiff') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
                   }`}
                 >
                   <i className="material-icons text-[10px]">
                     {isProbed('Vdiff') ? 'check_circle' : 'add_circle_outline'}
-                  </i> 
+                  </i>
                   {isProbed('Vdiff') ? 'Probed' : 'Probe'}
                 </button>
               </div>
-              <span 
-                className="font-mono text-xs font-bold tabular-nums" 
+              <span
+                className="font-mono text-xs font-bold tabular-nums"
                 style={{ color: voltageToColor(selectedElm.getVoltageDiff()) }}
               >
                 {selectedElm.getVoltageDiff().toFixed(3)} V
@@ -281,15 +298,15 @@ export function PropertiesPanel({
             <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
               <div className="flex flex-col gap-0.5">
                 <span className="text-[8px] text-text-muted uppercase font-bold">Current (I)</span>
-                <button 
+                <button
                   onClick={() => toggleProbe('I')}
-                  className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors ${
+                  className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
                     isProbed('I') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
                   }`}
                 >
                   <i className="material-icons text-[10px]">
                     {isProbed('I') ? 'check_circle' : 'add_circle_outline'}
-                  </i> 
+                  </i>
                   {isProbed('I') ? 'Probed' : 'Probe'}
                 </button>
               </div>

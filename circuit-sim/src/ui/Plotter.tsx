@@ -2,21 +2,13 @@ import { useEffect, useRef, useImperativeHandle, forwardRef, useState, useCallba
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import MatrixInspector from './MatrixInspector';
 import ConvergenceSparkline from './ConvergenceSparkline';
+import { useCircuitStore } from '../stores/circuitStore';
 
 export interface ProbedItem {
   id: string;
   elmId: string;
   prop: 'V1' | 'V2' | 'I' | 'Vdiff';
   color: string;
-}
-
-interface PlotterProps {
-  items: ProbedItem[];
-  matrixG?: number[][];
-  vectorV?: number[];
-  vectorI?: number[];
-  nrErrors?: number[];
-  simRunning?: boolean;
 }
 
 export interface PlotterHandle {
@@ -31,18 +23,18 @@ interface ChannelState {
 
 const MAX_POINTS = 500;
 
-export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
-  items,
-  matrixG = [[0]],
-  vectorV = [],
-  vectorI = [],
-  nrErrors = [],
-  simRunning = false
-}, ref) => {
+export const Plotter = forwardRef<PlotterHandle>((_, ref) => {
+  const items = useCircuitStore((s) => s.probedItems);
+  const matrixG = useCircuitStore((s) => s.matrixG);
+  const vectorV = useCircuitStore((s) => s.vectorV);
+  const vectorI = useCircuitStore((s) => s.vectorI);
+  const nrErrors = useCircuitStore((s) => s.nrErrors);
+  const simRunning = useCircuitStore((s) => s.simRunning);
+
   const [isMinimized, setIsMinimized] = useState(false);
   const [activeTab, setActiveTab] = useState<'plotter' | 'diagnostics'>('plotter');
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
+
   // Buffers
   const timesRef = useRef<number[]>([]);
   const valuesRef = useRef<number[][]>([]); // Array of lines, each is an array of points
@@ -132,7 +124,7 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.lineWidth = 1;
-    
+
     // Vertical grid divisions
     for (let x = 0; x < width; x += pixelsPerDiv) {
       ctx.beginPath();
@@ -165,9 +157,9 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
     // 2. Draw Channel curves using manual scale and offset configs
     items.forEach((item, i) => {
       if (!valuesRef.current[i]) return;
-      
+
       const config = channelConfigs[item.id] || { scale: item.prop === 'I' ? 0.002 : 5.0, offset: 0 };
-      
+
       ctx.strokeStyle = item.color;
       ctx.lineWidth = 1.8;
       ctx.lineJoin = 'round';
@@ -177,11 +169,11 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
       for (let j = 0; j < vals.length; j++) {
         const t = timesRef.current[j];
         const val = vals[j];
-        
+
         const x = ((t - tStart) / tSpan) * width;
         // Y = Center - (Value / ScalePerDiv * PixelsPerDiv) - Offset
         const y = centerY - (val / config.scale * pixelsPerDiv) - config.offset;
-        
+
         if (j === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
@@ -228,7 +220,7 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
   return (
     <div className={`flex flex-col bg-surface-dim overflow-hidden select-none border-t border-border-hairline z-40 relative flex-shrink-0 transition-all ${isMinimized ? 'h-[40px]' : 'h-[240px]'}`}>
       {/* Header & Tab controls */}
-      <div 
+      <div
         className="h-[40px] border-b border-border-hairline flex items-center justify-between px-4 bg-surface/85 backdrop-blur-md cursor-pointer"
         onClick={() => setIsMinimized(!isMinimized)}
       >
@@ -276,15 +268,15 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
                         CH{idx + 1}: {item.elmId}.{item.prop}
                       </span>
                     </div>
-                    
+
                     {/* Scale & Position Controls */}
                     <div className="flex items-center gap-2 border-l border-border-hairline pl-2">
                       <div className="flex flex-col items-center">
                         <span className="text-[6px] text-text-muted font-bold tracking-tighter uppercase leading-none mb-0.5">Scale</span>
                         <div className="flex items-center gap-1">
-                          <button 
+                          <button
                             onClick={() => updateChannelConfig(item.id, { scale: config.scale * 2 })}
-                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
+                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
                             title="Scale Up (Compress Vertically)"
                           >
                             <i className="material-icons text-[10px]">expand_less</i>
@@ -292,29 +284,29 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
                           <span className="text-[8px] font-mono text-text-primary min-w-[32px] text-center">
                             {getScaleLabel(item, config.scale)}
                           </span>
-                          <button 
+                          <button
                             onClick={() => updateChannelConfig(item.id, { scale: Math.max(1e-5, config.scale / 2) })}
-                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
+                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
                             title="Scale Down (Stretch Vertically)"
                           >
                             <i className="material-icons text-[10px]">expand_more</i>
                           </button>
                         </div>
                       </div>
-                      
+
                       <div className="flex flex-col items-center border-l border-border-hairline/50 pl-2">
                         <span className="text-[6px] text-text-muted font-bold tracking-tighter uppercase leading-none mb-0.5">Pos</span>
                         <div className="flex items-center gap-1">
-                          <button 
+                          <button
                             onClick={() => updateChannelConfig(item.id, { offset: config.offset + 10 })}
-                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
+                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
                             title="Shift Up"
                           >
                             <i className="material-icons text-[10px]">keyboard_arrow_up</i>
                           </button>
-                          <button 
+                          <button
                             onClick={() => updateChannelConfig(item.id, { offset: config.offset - 10 })}
-                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none"
+                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
                             title="Shift Down"
                           >
                             <i className="material-icons text-[10px]">keyboard_arrow_down</i>
@@ -335,7 +327,7 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
             </div>
           )}
         </div>
-        
+
         <div className="flex items-center gap-2">
           {activeTab === 'plotter' && !isMinimized && (
             <div className="flex items-center gap-3 px-3 py-1 border-x border-border-hairline h-full text-[8px] font-mono text-text-muted uppercase">
@@ -343,8 +335,8 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
               <span className="text-primary font-bold">20ms/div</span>
             </div>
           )}
-          <button 
-            className="p-1 hover:bg-surface-bright text-text-muted hover:text-text-primary transition-colors focus:outline-none"
+          <button
+            className="p-1 hover:bg-surface-bright text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               setIsMinimized(!isMinimized);
@@ -359,8 +351,8 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
       <div className={`flex-1 relative overflow-hidden bg-[#07070a] h-[200px] ${isMinimized ? 'hidden' : 'block'}`}>
         {/* Oscilloscope Container */}
         <div className={`w-full h-full relative cursor-crosshair overflow-hidden plotter-grid ${activeTab === 'plotter' ? 'block' : 'hidden'}`}>
-          <canvas 
-            ref={canvasRef} 
+          <canvas
+            ref={canvasRef}
             className="w-full h-full block"
           />
           <div className="absolute right-4 bottom-2 pointer-events-none flex items-center gap-4">
@@ -385,7 +377,7 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
               <MatrixInspector data={vectorI} label="Sources [i]" precision={2} />
             </div>
           </div>
-          
+
           <div className="flex-shrink-0 pr-4">
             <ConvergenceSparkline errors={nrErrors} />
           </div>
@@ -396,3 +388,5 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
 });
 
 Plotter.displayName = 'Plotter';
+
+export default Plotter;

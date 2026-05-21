@@ -1,43 +1,45 @@
 import React from 'react';
-import { 
-  MousePointer2, 
-  Play, 
-  Pause, 
-  RotateCcw, 
-  Trash2, 
-  List
+import {
+  MousePointer2,
+  Play,
+  Pause,
+  RotateCcw,
+  Trash2,
+  List,
 } from 'lucide-react';
-import type { ToolMode } from '../App';
+import { useUIStore, type ToolMode } from '../stores/uiStore';
+import { useCircuitStore } from '../stores/circuitStore';
 
-interface ToolbarProps {
-  tool: ToolMode;
-  setTool: (t: ToolMode) => void;
-  simRunning: boolean;
-  setSimRunning: (r: boolean) => void;
-  handleReset: () => void;
-  handleDelete: () => void;
-  selectedId: string | null;
-  showValues: boolean;
-  setShowValues: (s: boolean) => void;
-  simTime: number;
-  stopMessage: string | null;
-  viewMode: 'workspace' | 'whitepaper';
-  setViewMode: (v: 'workspace' | 'whitepaper') => void;
-}
+export const Toolbar: React.FC = () => {
+  const tool = useUIStore((s) => s.tool);
+  const setTool = useUIStore((s) => s.setTool);
+  const selectedId = useUIStore((s) => s.selectedId);
+  const setSelectedId = useUIStore((s) => s.setSelectedId);
+  const showValues = useUIStore((s) => s.showValues);
+  const setShowValues = useUIStore((s) => s.setShowValues);
+  const viewMode = useUIStore((s) => s.viewMode);
+  const setViewMode = useUIStore((s) => s.setViewMode);
 
-export const Toolbar: React.FC<ToolbarProps> = ({ 
-  tool, setTool, 
-  simRunning, setSimRunning, 
-  handleReset, handleDelete, selectedId,
-  showValues, setShowValues,
-  simTime,
-  stopMessage,
-  viewMode,
-  setViewMode
-}) => {
-  
+  const simRunning = useCircuitStore((s) => s.simRunning);
+  const setSimRunning = useCircuitStore((s) => s.setSimRunning);
+  const simTime = useCircuitStore((s) => s.simTime);
+  const stopMessage = useCircuitStore((s) => s.stopMessage);
+
   const selectTool = (mode: ToolMode) => {
     setTool(mode);
+  };
+
+  const handleReset = () => {
+    useCircuitStore.getState().resetSim();
+  };
+
+  const handleDelete = () => {
+    if (selectedId) {
+      const { circuit } = useCircuitStore.getState();
+      circuit.removeElement(selectedId);
+      circuit.analyzeCircuit();
+      setSelectedId(null);
+    }
   };
 
   return (
@@ -120,21 +122,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       <div className="flex items-center gap-4">
         {/* Play/Pause/Reset Controls */}
         <div className="flex items-center gap-0.5 bg-surface-dim border border-border-hairline p-0.5">
-          <button 
+          <button
             onClick={() => setSimRunning(!simRunning)}
             className={`p-1.5 transition-all focus:outline-none rounded-none ${simRunning ? 'text-primary' : 'text-text-secondary hover:bg-surface-bright/50'}`}
             title={simRunning ? "Pause (Space)" : "Run (Space)"}
           >
             {simRunning ? <Pause size={14} /> : <Play size={14} />}
           </button>
-          <button 
+          <button
             onClick={handleReset}
             className="p-1.5 text-text-secondary hover:bg-surface-bright/50 transition-colors focus:outline-none rounded-none"
             title="Reset Simulation"
           >
             <RotateCcw size={14} />
           </button>
-          <button 
+          <button
             onClick={handleDelete}
             disabled={!selectedId}
             className={`p-1.5 transition-colors focus:outline-none rounded-none ${selectedId ? 'text-voltage-neg hover:bg-surface-bright/50' : 'text-text-muted opacity-40 cursor-not-allowed'}`}
@@ -142,7 +144,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           >
             <Trash2 size={14} />
           </button>
-          <button 
+          <button
             onClick={() => setShowValues(!showValues)}
             className={`p-1.5 transition-colors focus:outline-none rounded-none ${showValues ? 'text-primary bg-surface-bright' : 'text-text-secondary hover:bg-surface-bright/50'}`}
             title="Toggle Value Labels"
@@ -164,7 +166,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               <span className="text-[9px] font-mono text-text-muted uppercase tracking-wider hidden sm:inline">{simRunning ? 'Engine Active' : 'Engine Idle'}</span>
             </div>
           )}
-          
+
           <div className="font-mono text-xs text-instrument-current font-bold tabular-nums">
             <span className="text-text-muted opacity-50 mr-1 text-[10px]">T_SIM:</span>
             {simTime.toFixed(2)}ms
