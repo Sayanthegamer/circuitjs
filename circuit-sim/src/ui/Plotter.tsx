@@ -222,8 +222,10 @@ export const Plotter = forwardRef<PlotterHandle>((_, ref) => {
     return `${scale.toFixed(1)} V/div`;
   };
 
+  const containerHeight = isMinimized ? 'h-[40px]' : 'h-[240px]';
+
   return (
-    <div className={`flex flex-col bg-surface-dim overflow-hidden select-none border-t border-border-hairline z-40 absolute bottom-0 left-0 w-full transition-all ${isMinimized ? 'h-[40px]' : 'h-[240px]'}`}>
+    <div className={`flex flex-col bg-surface-dim overflow-hidden select-none border-t border-border-hairline z-40 absolute bottom-0 left-0 w-full transition-all ${containerHeight}`}>
       {/* Header & Tab controls */}
       <div
         className="h-[40px] border-b border-border-hairline flex items-center justify-between px-4 bg-surface/85 backdrop-blur-md cursor-pointer"

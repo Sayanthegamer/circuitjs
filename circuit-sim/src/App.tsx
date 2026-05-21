@@ -139,7 +139,7 @@ function App() {
   );
 
   return (
-    <div className="flex flex-col h-screen bg-surface-dim text-text-primary overflow-hidden font-sans">
+    <div className="relative flex flex-col h-screen bg-surface-dim text-text-primary overflow-hidden font-sans">
       {/* Top Toolbar */}
       <Toolbar />
 
