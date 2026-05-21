@@ -24,7 +24,6 @@ import { SolverMatrixSystem } from './ui/MatrixInspector';
 import ConvergenceSparkline from './ui/ConvergenceSparkline';
 import NodeHUD from './ui/NodeHUD';
 import SideNavBar from './ui/SideNavBar';
-import './App.css';
 import './ui.css';
 
 export type ToolMode = 'select' | 'wire' | 'resistor' | 'voltage' | 'ground' | 'capacitor' | 'inductor' | 'switch' | 'diode' | 'led';
