@@ -21,6 +21,8 @@ interface ToolbarProps {
   setShowValues: (s: boolean) => void;
   simTime: number;
   stopMessage: string | null;
+  viewMode: 'workspace' | 'whitepaper';
+  setViewMode: (v: 'workspace' | 'whitepaper') => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({ 
@@ -29,7 +31,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   handleReset, handleDelete, selectedId,
   showValues, setShowValues,
   simTime,
-  stopMessage
+  stopMessage,
+  viewMode,
+  setViewMode
 }) => {
   
   const selectTool = (mode: ToolMode) => {
@@ -38,14 +42,38 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
   return (
     <header className="h-[46px] bg-surface-toolbar border-b border-border-hairline fixed top-0 w-full z-50 flex items-center justify-between px-4 select-none">
-      {/* Brand Logo */}
-      <div className="flex items-center gap-4">
+      {/* Brand Logo & View Selector */}
+      <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 bg-primary rounded-none flex items-center justify-center">
             <div className="w-2.5 h-2.5 border-2 border-white rotate-45"></div>
           </div>
           <span className="font-bold tracking-tight text-text-primary text-sm font-sans">CircuitSim</span>
           <span className="text-[9px] font-mono text-text-muted bg-surface-bright/50 px-1.5 py-0.5 rounded-none border border-border-hairline">v1.0.4-alpha</span>
+        </div>
+
+        {/* View Switcher */}
+        <div className="flex items-center gap-0.5 bg-surface-dim border border-border-hairline p-0.5">
+          <button
+            onClick={() => setViewMode('workspace')}
+            className={`px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold transition-all focus:outline-none rounded-none cursor-pointer ${
+              viewMode === 'workspace'
+                ? 'bg-surface-bright text-primary font-bold'
+                : 'text-text-secondary hover:bg-surface-bright/50'
+            }`}
+          >
+            Workspace
+          </button>
+          <button
+            onClick={() => setViewMode('whitepaper')}
+            className={`px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold transition-all focus:outline-none rounded-none cursor-pointer ${
+              viewMode === 'whitepaper'
+                ? 'bg-surface-bright text-primary font-bold'
+                : 'text-text-secondary hover:bg-surface-bright/50'
+            }`}
+          >
+            Whitepaper
+          </button>
         </div>
       </div>
 

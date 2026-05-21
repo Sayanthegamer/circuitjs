@@ -1,5 +1,7 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef, useState, useCallback } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import MatrixInspector from './MatrixInspector';
+import ConvergenceSparkline from './ConvergenceSparkline';
 
 export interface ProbedItem {
   id: string;
@@ -10,6 +12,11 @@ export interface ProbedItem {
 
 interface PlotterProps {
   items: ProbedItem[];
+  matrixG?: number[][];
+  vectorV?: number[];
+  vectorI?: number[];
+  nrErrors?: number[];
+  simRunning?: boolean;
 }
 
 export interface PlotterHandle {
@@ -24,8 +31,16 @@ interface ChannelState {
 
 const MAX_POINTS = 500;
 
-export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) => {
+export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
+  items,
+  matrixG = [[0]],
+  vectorV = [],
+  vectorI = [],
+  nrErrors = [],
+  simRunning = false
+}, ref) => {
   const [isMinimized, setIsMinimized] = useState(false);
+  const [activeTab, setActiveTab] = useState<'plotter' | 'diagnostics'>('plotter');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Buffers
@@ -195,19 +210,45 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
   };
 
   return (
-    <div className={`flex flex-col bg-surface-dim overflow-hidden select-none border-t border-border-hairline z-40 relative flex-shrink-0 transition-all ${isMinimized ? 'h-[40px]' : 'h-[220px]'}`}>
-      {/* Oscilloscope Header & Channel Controls */}
+    <div className={`flex flex-col bg-surface-dim overflow-hidden select-none border-t border-border-hairline z-40 relative flex-shrink-0 transition-all ${isMinimized ? 'h-[40px]' : 'h-[240px]'}`}>
+      {/* Header & Tab controls */}
       <div 
         className="h-[40px] border-b border-border-hairline flex items-center justify-between px-4 bg-surface/85 backdrop-blur-md cursor-pointer"
         onClick={() => setIsMinimized(!isMinimized)}
       >
         <div className="flex items-center gap-6 overflow-x-auto no-scrollbar py-1" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-2">
-            <i className="material-icons text-text-muted text-sm">analytics</i>
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-secondary whitespace-nowrap">Oscilloscope Plotter</span>
+          {/* Segmented Tab Selector */}
+          <div className="flex items-center gap-0.5 bg-surface-dim border border-border-hairline p-0.5">
+            <button
+              onClick={() => {
+                setActiveTab('plotter');
+                setIsMinimized(false);
+              }}
+              className={`px-3 py-1 text-[9px] uppercase tracking-wider font-bold transition-all focus:outline-none rounded-none cursor-pointer ${
+                activeTab === 'plotter' && !isMinimized
+                  ? 'bg-surface-bright text-primary font-bold'
+                  : 'text-text-secondary hover:bg-surface-bright/50'
+              }`}
+            >
+              Oscilloscope
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('diagnostics');
+                setIsMinimized(false);
+              }}
+              className={`px-3 py-1 text-[9px] uppercase tracking-wider font-bold transition-all focus:outline-none rounded-none cursor-pointer ${
+                activeTab === 'diagnostics' && !isMinimized
+                  ? 'bg-surface-bright text-primary font-bold'
+                  : 'text-text-secondary hover:bg-surface-bright/50'
+              }`}
+            >
+              Solver Telemetry
+            </button>
           </div>
-          
-          {!isMinimized && (
+
+          {/* Tab Specific Options / Legends */}
+          {activeTab === 'plotter' && !isMinimized && (
             <div className="flex gap-4">
               {items.map((item, idx) => {
                 const config = channelConfigs[item.id] || { scale: item.prop === 'I' ? 0.002 : 5.0, offset: 0 };
@@ -222,7 +263,6 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
                     
                     {/* Scale & Position Controls */}
                     <div className="flex items-center gap-2 border-l border-border-hairline pl-2">
-                      {/* Scale Control */}
                       <div className="flex flex-col items-center">
                         <span className="text-[6px] text-text-muted font-bold tracking-tighter uppercase leading-none mb-0.5">Scale</span>
                         <div className="flex items-center gap-1">
@@ -246,7 +286,6 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
                         </div>
                       </div>
                       
-                      {/* Offset Control */}
                       <div className="flex flex-col items-center border-l border-border-hairline/50 pl-2">
                         <span className="text-[6px] text-text-muted font-bold tracking-tighter uppercase leading-none mb-0.5">Pos</span>
                         <div className="flex items-center gap-1">
@@ -272,10 +311,17 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
               })}
             </div>
           )}
+
+          {activeTab === 'diagnostics' && !isMinimized && (
+            <div className="flex items-center gap-2 text-[9px] text-text-muted font-mono uppercase">
+              <span className={`w-1.5 h-1.5 rounded-full ${simRunning ? 'bg-instrument-current animate-pulse' : 'bg-text-muted'}`}></span>
+              <span>Live MNA equations & Newton-Raphson error logs</span>
+            </div>
+          )}
         </div>
         
         <div className="flex items-center gap-2">
-          {!isMinimized && (
+          {activeTab === 'plotter' && !isMinimized && (
             <div className="flex items-center gap-3 px-3 py-1 border-x border-border-hairline h-full text-[8px] font-mono text-text-muted uppercase">
               <span>Timebase</span>
               <span className="text-primary font-bold">20ms/div</span>
@@ -292,20 +338,43 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
           </button>
         </div>
       </div>
-      
+
+      {/* Main Drawer Content */}
       {!isMinimized && (
-        <div className="flex-1 relative cursor-crosshair overflow-hidden plotter-grid">
-          <canvas 
-            ref={canvasRef} 
-            className="w-full h-full block"
-          />
-          
-          {/* Status Overlay */}
-          <div className="absolute right-4 bottom-2 pointer-events-none flex items-center gap-4">
-            <div className="text-[8px] font-mono text-text-muted bg-surface-dim px-2 py-0.5 border border-border-hairline">
-              BUFFER: ACTIVE
+        <div className="flex-1 relative overflow-hidden bg-[#07070a] h-[200px]">
+          {activeTab === 'plotter' ? (
+            <div className="w-full h-full relative cursor-crosshair overflow-hidden plotter-grid">
+              <canvas 
+                ref={canvasRef} 
+                className="w-full h-full block"
+              />
+              <div className="absolute right-4 bottom-2 pointer-events-none flex items-center gap-4">
+                <div className="text-[8px] font-mono text-text-muted bg-surface-dim px-2 py-0.5 border border-border-hairline">
+                  BUFFER: ACTIVE
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="w-full h-full overflow-x-auto overflow-y-hidden px-6 py-4 flex items-center justify-between gap-8">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex-shrink-0">
+                  <MatrixInspector data={matrixG} label="Conductance [G]" precision={2} />
+                </div>
+                <div className="text-sm font-light text-text-muted mx-1 flex-shrink-0">×</div>
+                <div className="flex-shrink-0">
+                  <MatrixInspector data={vectorV} label="Voltages [v]" precision={2} />
+                </div>
+                <div className="text-sm font-light text-text-muted mx-1 flex-shrink-0">=</div>
+                <div className="flex-shrink-0">
+                  <MatrixInspector data={vectorI} label="Sources [i]" precision={2} />
+                </div>
+              </div>
+              
+              <div className="flex-shrink-0 pr-4">
+                <ConvergenceSparkline errors={nrErrors} />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
