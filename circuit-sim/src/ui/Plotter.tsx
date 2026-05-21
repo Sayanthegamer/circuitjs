@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import MatrixInspector from './MatrixInspector';
 import ConvergenceSparkline from './ConvergenceSparkline';
 import { useCircuitStore } from '../stores/circuitStore';
+import { useUIStore } from '../stores/uiStore';
 
 export interface ProbedItem {
   id: string;
@@ -31,7 +32,8 @@ export const Plotter = forwardRef<PlotterHandle>((_, ref) => {
   const nrErrors = useCircuitStore((s) => s.nrErrors);
   const simRunning = useCircuitStore((s) => s.simRunning);
 
-  const [isMinimized, setIsMinimized] = useState(false);
+  const isMinimized = useUIStore((s) => s.plotterMinimized);
+  const setIsMinimized = useUIStore((s) => s.setPlotterMinimized);
   const [activeTab, setActiveTab] = useState<'plotter' | 'diagnostics'>('plotter');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -223,7 +225,7 @@ export const Plotter = forwardRef<PlotterHandle>((_, ref) => {
   };
 
   return (
-    <div className={`flex flex-col bg-surface-dim overflow-hidden select-none border-t border-border-hairline z-40 relative flex-shrink-0 transition-all ${
+    <div className={`flex flex-col bg-surface-dim overflow-hidden select-none border-t border-border-hairline z-40 absolute bottom-0 left-0 w-full transition-all ${
       isMinimized 
         ? 'h-[40px]' 
         : 'h-[160px] md:h-[240px]'

@@ -35,6 +35,7 @@ function App() {
   // Zustand Store values
   const viewMode = useUIStore((s) => s.viewMode);
   const tool = useUIStore((s) => s.tool);
+  const plotterMinimized = useUIStore((s) => s.plotterMinimized);
   const plotterRef = useCircuitStore((s) => s.plotterRef);
   const camera = useCircuitStore((s) => s.camera);
 
@@ -157,8 +158,8 @@ function App() {
       {/* Top Toolbar - Desktop vs Mobile */}
       {isDesktop ? <Toolbar /> : <MobileToolbar />}
 
-      <div className="flex flex-1 overflow-hidden pt-12 lg:pt-[46px]">
-        {/* Left Sidebar (Component Palette) - Desktop only */}
+      <div className="flex flex-1 overflow-hidden pt-12 lg:pt-[46px] pb-[40px]">
+        {/* Left Sidebar (Documentation Navigation & Component Palette) - Desktop only */}
         <aside className="hidden lg:flex w-[280px] flex-shrink-0 border-r border-border-hairline bg-surface flex flex-col h-full overflow-hidden">
           {viewMode === 'whitepaper' && <SideNavBar />}
           <div className={`flex-1 overflow-y-auto ${viewMode === 'whitepaper' ? 'border-t border-border-hairline' : ''}`}>
@@ -197,7 +198,7 @@ function App() {
 
       {/* Quick hint instructions for placing/deleting (rendered globally above plotter) */}
       {tool !== 'select' && (
-        <div className="fixed bottom-[160px] md:bottom-[240px] left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-surface border border-border-hairline text-xs font-mono text-text-primary shadow-xl">
+        <div className={`fixed ${plotterMinimized ? 'bottom-[60px]' : 'bottom-[180px] md:bottom-[260px]'} left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-surface border border-border-hairline text-xs font-mono text-text-primary shadow-xl transition-all`}>
           {tool === 'ground'
             ? 'Click canvas to place ground reference node'
             : `Click and drag on canvas to place ${tool}`
