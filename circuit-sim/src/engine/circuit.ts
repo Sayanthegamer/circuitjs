@@ -630,47 +630,13 @@ export class Circuit implements IStamper {
     const maxSubIter = this.circuitNonLinear ? 5000 : 1;
 
     for (let subiter = 0; subiter < maxSubIter; subiter++) {
-      this.subIterations = subiter;
-      this.converged = true;
-
-      // Reset right side
-      copyVector(this.origRightSide, this.circuitRightSide, this.circuitMatrixSize);
-
-      // For nonlinear: also reset matrix
-      if (this.circuitNonLinear) {
-        copyMatrix(this.origMatrix, this.circuitMatrix, this.circuitMatrixSize);
+      if (this.circuitNonLinear && this.converged && subiter > 0) {
+        break;
       }
 
-      // Let elements stamp nonlinear contributions
-      for (const ce of this.elements) {
-        if (ce instanceof WireElement) continue;
-        ce.doStep(this);
+      if (!this.runSubIteration(subiter)) {
+        return false;
       }
-
-      if (this.stopMessage) return false;
-
-      // Check for NaN/Infinity in matrix
-      for (let j = 0; j < this.circuitMatrixSize; j++) {
-        for (let i = 0; i < this.circuitMatrixSize; i++) {
-          const x = this.circuitMatrix[i][j];
-          if (isNaN(x) || !isFinite(x)) {
-            this.stop('NaN/infinite matrix!');
-            return false;
-          }
-        }
-      }
-
-      // Factor and solve
-      if (this.circuitNonLinear) {
-        if (this.converged && subiter > 0) break;
-        if (!luFactor(this.circuitMatrix, this.circuitMatrixSize, this.circuitPermute)) {
-          this.stop('Singular matrix!');
-          return false;
-        }
-      }
-
-      luSolve(this.circuitMatrix, this.circuitMatrixSize, this.circuitPermute, this.circuitRightSide);
-      this.applySolvedRightSide(this.circuitRightSide);
 
       if (!this.circuitNonLinear) break;
     }
@@ -688,6 +654,58 @@ export class Circuit implements IStamper {
     // Save node voltages for potential rollback
     copyVector(this.nodeVoltages, this.lastNodeVoltages, this.nodeVoltages.length);
 
+    return true;
+  }
+
+  private runSubIteration(subiter: number): boolean {
+    this.subIterations = subiter;
+    this.converged = true;
+
+    // Reset right side
+    copyVector(this.origRightSide, this.circuitRightSide, this.circuitMatrixSize);
+
+    // For nonlinear: also reset matrix
+    if (this.circuitNonLinear) {
+      copyMatrix(this.origMatrix, this.circuitMatrix, this.circuitMatrixSize);
+    }
+
+    // Let elements stamp nonlinear contributions
+    for (const ce of this.elements) {
+      if (ce instanceof WireElement) continue;
+      ce.doStep(this);
+    }
+
+    if (this.stopMessage) return false;
+
+    // Check for NaN/Infinity in matrix
+    if (!this.isMatrixValid()) {
+      return false;
+    }
+
+    // Factor and solve
+    if (this.circuitNonLinear) {
+      if (!luFactor(this.circuitMatrix, this.circuitMatrixSize, this.circuitPermute)) {
+        this.stop('Singular matrix!');
+        return false;
+      }
+    }
+
+    luSolve(this.circuitMatrix, this.circuitMatrixSize, this.circuitPermute, this.circuitRightSide);
+    this.applySolvedRightSide(this.circuitRightSide);
+
+    return true;
+  }
+
+  private isMatrixValid(): boolean {
+    for (let j = 0; j < this.circuitMatrixSize; j++) {
+      for (let i = 0; i < this.circuitMatrixSize; i++) {
+        const x = this.circuitMatrix[i][j];
+        if (isNaN(x) || !isFinite(x)) {
+          this.stop('NaN/infinite matrix!');
+          return false;
+        }
+      }
+    }
     return true;
   }
 
