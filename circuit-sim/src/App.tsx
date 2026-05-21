@@ -3,7 +3,7 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { Circuit, ResistorElement, VoltageSourceElement, WireElement, GroundElement, CapacitorElement, InductorElement, SwitchElement, DiodeElement, LEDElement } from './engine';
 import type { ICircuitElement } from './engine/types';
 import { Camera } from './renderer/camera';
-import { drawGrid, snapToGrid } from './renderer/grid';
+import { drawGrid, GRID_SIZE } from './renderer/grid';
 import { drawElement, drawGhost } from './renderer/element-renderers';
 import { Toolbar } from './ui/Toolbar';
 import { PropertiesPanel } from './ui/PropertiesPanel';
@@ -691,6 +691,12 @@ function distToElement(px: number, py: number, elm: ICircuitElement): number {
   const nearX = x1 + t * dx;
   const nearY = y1 + t * dy;
   return Math.sqrt((px - nearX) ** 2 + (py - nearY) ** 2);
+}
+
+
+/** Snap a value to the nearest grid point */
+function snapToGrid(v: number): number {
+  return Math.round(v / GRID_SIZE) * GRID_SIZE;
 }
 
 export default App;
