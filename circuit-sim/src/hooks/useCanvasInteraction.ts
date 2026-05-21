@@ -185,14 +185,9 @@ export function useCanvasInteraction(
     const { camera, circuit } = useCircuitStore.getState();
     const { tool, placing, setPlacing, setHoveredElm } = useUIStore.getState();
 
-    // Track mouse coordinates for NodeHUD non-reactively
+    // Track mouse coordinates for NodeHUD positioning (handled in NodeHUD component)
     lastMousePos.x = e.clientX;
     lastMousePos.y = e.clientY;
-    const hudEl = document.getElementById('node-hud');
-    if (hudEl) {
-      hudEl.style.left = `${e.clientX + 16}px`;
-      hudEl.style.top = `${e.clientY + 16}px`;
-    }
 
     if (activePointers.current.size === 2) {
       // Two-finger Pan & Zoom

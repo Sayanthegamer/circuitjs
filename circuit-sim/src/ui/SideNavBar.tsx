@@ -15,6 +15,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export const SideNavBar: React.FC = () => {
   const [activeItem, setActiveItem] = useState('intro');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     const observerOptions = {
@@ -47,6 +48,7 @@ export const SideNavBar: React.FC = () => {
 
   const handleNavClick = (targetId: string) => {
     setActiveItem(targetId);
+    setMobileNavOpen(false);
     const element = document.getElementById(targetId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -54,9 +56,21 @@ export const SideNavBar: React.FC = () => {
   };
 
   return (
-    <div className="p-4 border-b border-border-hairline bg-surface">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-text-muted font-bold mb-4 font-mono">Table of Contents</div>
-      <nav className="space-y-1">
+    <div className="p-3 md:p-4 border-b border-border-hairline bg-surface">
+      {/* Desktop Header */}
+      <div className="hidden md:block text-[10px] uppercase tracking-[0.2em] text-text-muted font-bold mb-4 font-mono">Table of Contents</div>
+      
+      {/* Mobile Toggle Button */}
+      <button
+        onClick={() => setMobileNavOpen(!mobileNavOpen)}
+        className="md:hidden w-full flex items-center justify-between px-3 py-2 bg-surface-dim border border-border-hairline text-xs text-text-secondary hover:text-text-primary transition-colors"
+      >
+        <span className="font-bold uppercase tracking-wider">Contents</span>
+        <span className="text-[10px]">{mobileNavOpen ? '▲' : '▼'}</span>
+      </button>
+
+      {/* Desktop Nav - Always visible on desktop */}
+      <nav className="hidden md:block space-y-1">
         {NAV_ITEMS.map((item) => (
           <button 
             key={item.targetId}
@@ -73,6 +87,27 @@ export const SideNavBar: React.FC = () => {
           </button>
         ))}
       </nav>
+
+      {/* Mobile Nav - Collapsible */}
+      {mobileNavOpen && (
+        <nav className="md:hidden mt-2 space-y-1">
+          {NAV_ITEMS.map((item) => (
+            <button 
+              key={item.targetId}
+              onClick={() => handleNavClick(item.targetId)}
+              aria-current={activeItem === item.targetId ? 'location' : undefined}
+              className={`w-full flex items-center gap-2 px-3 py-2.5 text-left text-xs transition-colors cursor-pointer select-none rounded-none focus:outline-none ${
+                activeItem === item.targetId 
+                  ? 'bg-surface-bright text-primary border-l-2 border-primary font-bold' 
+                  : 'text-text-secondary hover:bg-surface-bright/50 hover:text-text-primary border-l-2 border-transparent'
+              }`}
+            >
+              <i className="material-icons text-sm">{item.icon}</i>
+              <span className="font-sans">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 };
