@@ -149,26 +149,6 @@ export interface IStamper {
   subIterations: number;
 }
 
-// ============================================================
-// Worker Message Protocol
-// ============================================================
-
-export type WorkerRequest =
-  | { type: 'init'; circuit: SerializedCircuit }
-  | { type: 'start' }
-  | { type: 'stop' }
-  | { type: 'reset' }
-  | { type: 'setSpeed'; speed: number }
-  | { type: 'addElement'; element: SerializedElement }
-  | { type: 'removeElement'; id: ElementId }
-  | { type: 'updateElement'; id: ElementId; props: Record<string, unknown> }
-  | { type: 'tick' };
-
-export type WorkerResponse =
-  | { type: 'state'; state: SimulationState }
-  | { type: 'error'; message: string }
-  | { type: 'ready' };
-
 export interface SimulationState {
   t: number;
   timeStep: number;
@@ -185,20 +165,4 @@ export interface ElementState {
   volts: number[];
   current: number;
   power: number;
-}
-
-export interface SerializedElement {
-  id: ElementId;
-  type: string;
-  x: number;
-  y: number;
-  x2: number;
-  y2: number;
-  props: Record<string, unknown>;
-}
-
-export interface SerializedCircuit {
-  elements: SerializedElement[];
-  timeStep: number;
-  maxTimeStep: number;
 }

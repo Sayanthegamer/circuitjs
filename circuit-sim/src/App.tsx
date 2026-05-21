@@ -3,8 +3,8 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { Circuit, ResistorElement, VoltageSourceElement, WireElement, GroundElement, CapacitorElement, InductorElement, SwitchElement, DiodeElement, LEDElement } from './engine';
 import type { ICircuitElement } from './engine/types';
 import { Camera } from './renderer/camera';
-import { drawGrid, snapToGrid } from './renderer/grid';
-import { drawElement, drawGhost } from './renderer/element-renderers';
+import { drawGrid, GRID_SIZE } from './renderer/grid';
+import { drawElement } from './renderer/element-renderers';
 import { Toolbar } from './ui/Toolbar';
 import { PropertiesPanel } from './ui/PropertiesPanel';
 import { Plotter, type ProbedItem, type PlotterHandle } from './ui/Plotter';
@@ -204,7 +204,14 @@ function App() {
       // Draw ghost element being placed
       const curPlacing = placingRef.current;
       if (curPlacing && curPlacing.phase === 'second') {
-        drawGhost(ctx, curPlacing.type, curPlacing.x1, curPlacing.y1, curPlacing.x2, curPlacing.y2);
+        ctx.globalAlpha = 0.4;
+        const mockElm = {
+          type: curPlacing.type, x: curPlacing.x1, y: curPlacing.y1, x2: curPlacing.x2, y2: curPlacing.y2,
+          volts: [0, 0], nodes: [0, 0],
+          getCurrent: () => 0,
+        } as unknown as ICircuitElement;
+        drawElement(ctx, mockElm, false, 0, 1);
+        ctx.globalAlpha = 1;
       }
 
       ctx.restore();
@@ -238,7 +245,7 @@ function App() {
 
     rafRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [probedItems]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [probedItems]);
 
   // --- Mouse Handlers ---
   const getWorldPos = useCallback((e: React.PointerEvent) => {
@@ -369,9 +376,7 @@ function App() {
          const delta = dist - lastPinchDist.current;
          if (Math.abs(delta) > 0.5) { // small threshold
              // call handleTouchZoom
-             if (typeof (cameraRef.current as any).handleTouchZoom === 'function') {
-                 (cameraRef.current as any).handleTouchZoom(delta, midX, midY);
-             }
+             cameraRef.current.handleTouchZoom(delta, midX, midY);
          }
       }
 
