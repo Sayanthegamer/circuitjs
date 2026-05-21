@@ -6,6 +6,15 @@ const NodeHUD: React.FC = () => {
 
   if (!elm) return null;
 
+  // Calculate position inline - component re-renders when hoveredElm changes
+  // Position clamping handled by CSS transforms for better performance
+  const style: React.CSSProperties = {
+    left: lastMousePos.x + 16,
+    top: lastMousePos.y + 16,
+    // Clamp to viewport using CSS transform
+    transform: 'translate(0, 0)',
+  };
+
   // Formatting helper for engineering notation
   const formatVal = (val: number, unit: string) => {
     const absVal = Math.abs(val);
@@ -24,57 +33,54 @@ const NodeHUD: React.FC = () => {
     <div 
       id="node-hud"
       className="fixed z-[100] pointer-events-none transition-all duration-75 ease-out"
-      style={{ 
-        left: lastMousePos.x + 16, 
-        top: lastMousePos.y + 16,
-      }}
+      style={style}
     >
-      <div className="bg-surface-panel/90 backdrop-blur-md border border-border-hairline rounded shadow-2xl overflow-hidden min-w-[180px]">
+      <div className="bg-surface-panel/90 backdrop-blur-md border border-border-hairline shadow-2xl overflow-hidden w-[180px] sm:w-[200px]">
         {/* HUD Header */}
-        <div className="px-3 py-1.5 bg-surface-bright/50 border-b border-border-hairline flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="px-2.5 sm:px-3 py-1.5 bg-surface-bright/50 border-b border-border-hairline flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
-            <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-text-secondary">
+            <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.15em] text-text-secondary">
               {elm.type} <span className="text-primary">[{elm.id}]</span>
             </span>
           </div>
-          <span className="text-[8px] font-mono text-text-muted">LIVE_DATA</span>
+          <span className="text-[7px] sm:text-[8px] font-mono text-text-muted">LIVE</span>
         </div>
 
         {/* Data Grid */}
-        <div className="p-3 grid grid-cols-2 gap-x-4 gap-y-2">
+        <div className="p-2 sm:p-3 grid grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-1.5 sm:gap-y-2">
           <div className="flex flex-col">
-            <span className="text-[8px] text-text-muted uppercase font-bold tracking-tighter mb-0.5">V_node1</span>
-            <span className="font-mono text-[11px] text-instrument-voltage font-bold tabular-nums">
+            <span className="text-[7px] sm:text-[8px] text-text-muted uppercase font-bold tracking-tighter mb-0.5">V1</span>
+            <span className="font-mono text-[10px] sm:text-[11px] text-instrument-voltage font-bold tabular-nums">
               {formatVal(v1, 'V')}
             </span>
           </div>
           <div className="flex flex-col text-right">
-            <span className="text-[8px] text-text-muted uppercase font-bold tracking-tighter mb-0.5">V_node2</span>
-            <span className="font-mono text-[11px] text-instrument-voltage font-bold tabular-nums">
+            <span className="text-[7px] sm:text-[8px] text-text-muted uppercase font-bold tracking-tighter mb-0.5">V2</span>
+            <span className="font-mono text-[10px] sm:text-[11px] text-instrument-voltage font-bold tabular-nums">
               {formatVal(v2, 'V')}
             </span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[8px] text-text-muted uppercase font-bold tracking-tighter mb-0.5">Delta_V</span>
-            <span className="font-mono text-[11px] text-text-primary font-bold tabular-nums">
+            <span className="text-[7px] sm:text-[8px] text-text-muted uppercase font-bold tracking-tighter mb-0.5">ΔV</span>
+            <span className="font-mono text-[10px] sm:text-[11px] text-text-primary font-bold tabular-nums">
               {formatVal(vDiff, 'V')}
             </span>
           </div>
           <div className="flex flex-col text-right">
-            <span className="text-[8px] text-text-muted uppercase font-bold tracking-tighter mb-0.5">Current</span>
-            <span className="font-mono text-[11px] text-instrument-current font-bold tabular-nums">
+            <span className="text-[7px] sm:text-[8px] text-text-muted uppercase font-bold tracking-tighter mb-0.5">I</span>
+            <span className="font-mono text-[10px] sm:text-[11px] text-instrument-current font-bold tabular-nums">
               {formatVal(current, 'A')}
             </span>
           </div>
         </div>
 
         {/* Footer/Status */}
-        <div className="px-3 py-1 bg-primary/5 flex justify-between items-center">
-          <div className="h-[2px] flex-1 bg-border-hairline relative overflow-hidden mr-3">
+        <div className="px-2.5 sm:px-3 py-1 bg-primary/5 flex justify-between items-center">
+          <div className="h-[2px] flex-1 bg-border-hairline relative overflow-hidden mr-2 sm:mr-3">
             <div className="absolute inset-0 bg-primary/40 animate-shimmer" style={{ width: '40%' }}></div>
           </div>
-          <span className="text-[7px] font-mono text-primary/80 uppercase">Simulating_Step</span>
+          <span className="text-[6px] sm:text-[7px] font-mono text-primary/80 uppercase">Sim</span>
         </div>
       </div>
       

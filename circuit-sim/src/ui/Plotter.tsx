@@ -223,75 +223,79 @@ export const Plotter = forwardRef<PlotterHandle>((_, ref) => {
   };
 
   return (
-    <div className={`flex flex-col bg-surface-dim overflow-hidden select-none border-t border-border-hairline z-40 relative flex-shrink-0 transition-all ${isMinimized ? 'h-[40px]' : 'h-[240px]'}`}>
+    <div className={`flex flex-col bg-surface-dim overflow-hidden select-none border-t border-border-hairline z-40 relative flex-shrink-0 transition-all ${
+      isMinimized 
+        ? 'h-[40px]' 
+        : 'h-[160px] md:h-[240px]'
+    }`}>
       {/* Header & Tab controls */}
       <div
-        className="h-[40px] border-b border-border-hairline flex items-center justify-between px-4 bg-surface/85 backdrop-blur-md cursor-pointer"
+        className="h-[40px] border-b border-border-hairline flex items-center justify-between px-3 md:px-4 bg-surface/85 backdrop-blur-md cursor-pointer"
         onClick={() => setIsMinimized(!isMinimized)}
       >
-        <div className="flex items-center gap-6 overflow-x-auto no-scrollbar py-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar py-1" onClick={(e) => e.stopPropagation()}>
           {/* Segmented Tab Selector */}
-          <div className="flex items-center gap-0.5 bg-surface-dim border border-border-hairline p-0.5">
+          <div className="flex items-center gap-0.5 bg-surface-dim border border-border-hairline p-0.5 flex-shrink-0">
             <button
               onClick={() => {
                 setActiveTab('plotter');
                 setIsMinimized(false);
               }}
-              className={`px-3 py-1 text-[9px] uppercase tracking-wider font-bold transition-all focus:outline-none rounded-none cursor-pointer ${
+              className={`px-2 md:px-3 py-1 text-[9px] uppercase tracking-wider font-bold transition-all focus:outline-none rounded-none cursor-pointer ${
                 activeTab === 'plotter' && !isMinimized
                   ? 'bg-surface-bright text-primary font-bold'
                   : 'text-text-secondary hover:bg-surface-bright/50'
               }`}
             >
-              Oscilloscope
+              Scope
             </button>
             <button
               onClick={() => {
                 setActiveTab('diagnostics');
                 setIsMinimized(false);
               }}
-              className={`px-3 py-1 text-[9px] uppercase tracking-wider font-bold transition-all focus:outline-none rounded-none cursor-pointer ${
+              className={`px-2 md:px-3 py-1 text-[9px] uppercase tracking-wider font-bold transition-all focus:outline-none rounded-none cursor-pointer ${
                 activeTab === 'diagnostics' && !isMinimized
                   ? 'bg-surface-bright text-primary font-bold'
                   : 'text-text-secondary hover:bg-surface-bright/50'
               }`}
             >
-              Solver Telemetry
+              Solver
             </button>
           </div>
 
           {/* Tab Specific Options / Legends */}
           {activeTab === 'plotter' && !isMinimized && (
-            <div className="flex gap-4">
+            <div className="flex gap-3 md:gap-4 overflow-x-auto plotter-channel-legend pb-1">
               {items.map((item, idx) => {
                 const config = channelConfigs[item.id] || { scale: item.prop === 'I' ? 0.002 : 5.0, offset: 0 };
                 return (
-                  <div key={item.id} className="flex items-center gap-3 bg-surface-bright/25 border border-border-hairline px-2 py-0.5 group">
-                    <div className="flex items-center gap-1.5 min-w-[70px]">
+                  <div key={item.id} className="flex items-center gap-2 bg-surface-bright/25 border border-border-hairline px-2 py-0.5 group flex-shrink-0">
+                    <div className="flex items-center gap-1.5 min-w-[50px] md:min-w-[70px]">
                       <div className="w-2 h-2" style={{ backgroundColor: item.color }}></div>
-                      <span className="text-[9px] font-mono font-bold text-text-secondary whitespace-nowrap">
-                        CH{idx + 1}: {item.elmId}.{item.prop}
+                      <span className="text-[8px] md:text-[9px] font-mono font-bold text-text-secondary whitespace-nowrap">
+                        CH{idx + 1}
                       </span>
                     </div>
 
                     {/* Scale & Position Controls */}
-                    <div className="flex items-center gap-2 border-l border-border-hairline pl-2">
+                    <div className="flex items-center gap-1 md:gap-2 border-l border-border-hairline pl-1.5 md:pl-2">
                       <div className="flex flex-col items-center">
-                        <span className="text-[6px] text-text-muted font-bold tracking-tighter uppercase leading-none mb-0.5">Scale</span>
-                        <div className="flex items-center gap-1">
+                        <span className="hidden md:inline text-[6px] text-text-muted font-bold tracking-tighter uppercase leading-none mb-0.5">Scale</span>
+                        <div className="flex items-center gap-0.5">
                           <button
                             onClick={() => updateChannelConfig(item.id, { scale: config.scale * 2 })}
-                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
+                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer w-5 h-5 flex items-center justify-center"
                             title="Scale Up (Compress Vertically)"
                           >
                             <i className="material-icons text-[10px]">expand_less</i>
                           </button>
-                          <span className="text-[8px] font-mono text-text-primary min-w-[32px] text-center">
+                          <span className="text-[7px] md:text-[8px] font-mono text-text-primary min-w-[28px] md:min-w-[32px] text-center">
                             {getScaleLabel(item, config.scale)}
                           </span>
                           <button
                             onClick={() => updateChannelConfig(item.id, { scale: Math.max(1e-5, config.scale / 2) })}
-                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
+                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer w-5 h-5 flex items-center justify-center"
                             title="Scale Down (Stretch Vertically)"
                           >
                             <i className="material-icons text-[10px]">expand_more</i>
@@ -299,19 +303,19 @@ export const Plotter = forwardRef<PlotterHandle>((_, ref) => {
                         </div>
                       </div>
 
-                      <div className="flex flex-col items-center border-l border-border-hairline/50 pl-2">
+                      <div className="hidden md:flex flex-col items-center border-l border-border-hairline/50 pl-1.5">
                         <span className="text-[6px] text-text-muted font-bold tracking-tighter uppercase leading-none mb-0.5">Pos</span>
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => updateChannelConfig(item.id, { offset: config.offset + 10 })}
-                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
+                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer w-4 h-4 flex items-center justify-center"
                             title="Shift Up"
                           >
                             <i className="material-icons text-[10px]">keyboard_arrow_up</i>
                           </button>
                           <button
                             onClick={() => updateChannelConfig(item.id, { offset: config.offset - 10 })}
-                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
+                            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer w-4 h-4 flex items-center justify-center"
                             title="Shift Down"
                           >
                             <i className="material-icons text-[10px]">keyboard_arrow_down</i>
@@ -326,16 +330,16 @@ export const Plotter = forwardRef<PlotterHandle>((_, ref) => {
           )}
 
           {activeTab === 'diagnostics' && !isMinimized && (
-            <div className="flex items-center gap-2 text-[9px] text-text-muted font-mono uppercase">
+            <div className="flex items-center gap-2 text-[9px] text-text-muted font-mono uppercase hidden md:flex">
               <span className={`w-1.5 h-1.5 rounded-full ${simRunning ? 'bg-instrument-current animate-pulse' : 'bg-text-muted'}`}></span>
               <span>Live MNA equations & Newton-Raphson error logs</span>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
           {activeTab === 'plotter' && !isMinimized && (
-            <div className="flex items-center gap-3 px-3 py-1 border-x border-border-hairline h-full text-[8px] font-mono text-text-muted uppercase">
+            <div className="hidden sm:flex items-center gap-3 px-3 py-1 border-x border-border-hairline h-full text-[8px] font-mono text-text-muted uppercase">
               <span>Timebase</span>
               <span className="text-primary font-bold">20ms/div</span>
             </div>
@@ -353,37 +357,39 @@ export const Plotter = forwardRef<PlotterHandle>((_, ref) => {
       </div>
 
       {/* Main Drawer Content */}
-      <div className={`flex-1 relative overflow-hidden bg-[#07070a] h-[200px] ${isMinimized ? 'hidden' : 'block'}`}>
+      <div className={`flex-1 relative overflow-hidden bg-[#07070a] ${isMinimized ? 'hidden' : 'block'} ${
+        activeTab === 'plotter' ? 'h-[120px] md:h-[200px]' : 'h-[120px] md:h-[200px]'
+      }`}>
         {/* Oscilloscope Container */}
         <div className={`w-full h-full relative cursor-crosshair overflow-hidden plotter-grid ${activeTab === 'plotter' ? 'block' : 'hidden'}`}>
           <canvas
             ref={canvasRef}
             className="w-full h-full block"
           />
-          <div className="absolute right-4 bottom-2 pointer-events-none flex items-center gap-4">
-            <div className="text-[8px] font-mono text-text-muted bg-surface-dim px-2 py-0.5 border border-border-hairline">
+          <div className="absolute right-2 md:right-4 bottom-1 md:bottom-2 pointer-events-none flex items-center gap-2 md:gap-4">
+            <div className="hidden sm:block text-[7px] md:text-[8px] font-mono text-text-muted bg-surface-dim px-1.5 md:px-2 py-0.5 border border-border-hairline">
               BUFFER: ACTIVE
             </div>
           </div>
         </div>
 
         {/* Solver Telemetry Container */}
-        <div className={`w-full h-full overflow-x-auto overflow-y-hidden px-6 py-4 flex items-center justify-between gap-8 ${activeTab === 'diagnostics' ? 'flex' : 'hidden'}`}>
-          <div className="flex items-center gap-2 min-w-0">
+        <div className={`w-full h-full overflow-x-auto overflow-y-hidden px-3 md:px-6 py-2 md:py-4 flex items-center justify-between gap-4 md:gap-8 ${activeTab === 'diagnostics' ? 'flex' : 'hidden'}`}>
+          <div className="flex items-center gap-1 md:gap-2 min-w-0">
             <div className="flex-shrink-0">
               <MatrixInspector data={matrixG} label="Conductance [G]" precision={2} />
             </div>
-            <div className="text-sm font-light text-text-muted mx-1 flex-shrink-0">×</div>
+            <div className="text-xs md:text-sm font-light text-text-muted mx-0.5 md:mx-1 flex-shrink-0">×</div>
             <div className="flex-shrink-0">
               <MatrixInspector data={vectorV} label="Voltages [v]" precision={2} />
             </div>
-            <div className="text-sm font-light text-text-muted mx-1 flex-shrink-0">=</div>
+            <div className="text-xs md:text-sm font-light text-text-muted mx-0.5 md:mx-1 flex-shrink-0">=</div>
             <div className="flex-shrink-0">
               <MatrixInspector data={vectorI} label="Sources [i]" precision={2} />
             </div>
           </div>
 
-          <div className="flex-shrink-0 pr-4">
+          <div className="flex-shrink-0 pr-2 md:pr-4">
             <ConvergenceSparkline errors={nrErrors} />
           </div>
         </div>

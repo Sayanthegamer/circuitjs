@@ -101,3 +101,130 @@ body {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+
+/* =============================================
+   Responsive Mobile Layout Utilities & Animations
+   ============================================= */
+
+/* Slide-up animation for bottom sheets */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Slide-down animation for dropdowns */
+@keyframes slide-down {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Slide-right animation for side panels */
+@keyframes slide-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-right {
+  animation: slide-right 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* =============================================
+   Touch-Friendly Mobile Overrides
+   ============================================= */
+
+/* Minimum touch target size for interactive elements */
+@media (max-width: 1023px) {
+  button,
+  [role="button"],
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Ensure inputs are touch-friendly */
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  /* Reduce border widths on mobile */
+  .border-border-hairline {
+    border-width: 1px;
+  }
+}
+
+/* =============================================
+   Responsive Typography & Spacing
+   ============================================= */
+
+/* Compact spacing for mobile toolbars and panels */
+@media (max-width: 639px) {
+  .text-legend-compact {
+    font-size: 8px;
+  }
+  
+  .padding-mobile {
+    padding: 12px;
+  }
+  
+  .gap-mobile {
+    gap: 8px;
+  }
+}
+
+/* Ensure no horizontal overflow on any screen */
+@media (max-width: 1023px) {
+  body,
+  #root {
+    overflow-x: hidden;
+  }
+  
+  .overflow-safe {
+    overflow-x: hidden;
+  }
+}
+
+/* =============================================
+   Mobile Plotter / Oscilloscope Adjustments
+   ============================================= */
+
+@media (max-width: 767px) {
+  .plotter-channel-legend {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  .plotter-channel-legend::-webkit-scrollbar {
+    display: none;
+  }
+}
