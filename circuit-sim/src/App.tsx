@@ -698,4 +698,9 @@ function distToElement(px: number, py: number, elm: ICircuitElement): number {
   return Math.sqrt((px - nearX) ** 2 + (py - nearY) ** 2);
 }
 
+// --- Utility: Snap coordinate to grid ---
+function snapToGrid(value: number): number {
+  return Math.round(value / GRID_SIZE) * GRID_SIZE;
+}
+
 export default App;
