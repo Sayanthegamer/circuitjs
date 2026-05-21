@@ -194,7 +194,7 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({ items }, ref) 
   };
 
   return (
-    <div className={`h-full flex flex-col bg-surface-dim overflow-hidden select-none border-t border-border-hairline transition-all ${isMinimized ? 'h-[40px]' : ''}`}>
+    <div className="h-full flex flex-col bg-surface-dim overflow-hidden select-none">
       {/* Oscilloscope Header & Channel Controls */}
       <div 
         className="h-[40px] border-b border-border-hairline flex items-center justify-between px-4 bg-surface/85 backdrop-blur-md cursor-pointer"
