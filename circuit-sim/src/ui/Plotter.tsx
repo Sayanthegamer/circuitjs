@@ -189,7 +189,7 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
 
   useEffect(() => {
     draw();
-  }, [items, draw, channelConfigs]);
+  }, [items, draw, channelConfigs, isMinimized, activeTab]);
 
   const updateChannelConfig = (id: string, updates: Partial<ChannelState>) => {
     setChannelConfigs(prev => {
