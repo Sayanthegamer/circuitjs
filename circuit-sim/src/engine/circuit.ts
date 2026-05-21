@@ -210,6 +210,25 @@ export class Circuit implements IStamper {
       this.lastI = [];
       this.lastV = [];
       this.lastErrors = [];
+      this.nodeList = [];
+      this.elementMap.clear();
+      this.circuitMatrix = [];
+      this.voltageSources = [];
+      this.voltageSourceCount = 0;
+      this.circuitMatrixSize = 0;
+      this.circuitMatrixFullSize = 0;
+      this.floatingNodes = [];
+      this.circuitPermute = [];
+      this.circuitRowInfo = [];
+      this.nodeMap.clear();
+      this.wireInfoList = [];
+      this._wireForest = undefined;
+      this._wireNodesData = undefined;
+      this.nodeVoltages = new Float64Array(0);
+      this.lastNodeVoltages = new Float64Array(0);
+      this.circuitRightSide = new Float64Array(0);
+      this.origMatrix = [];
+      this.origRightSide = new Float64Array(0);
       return;
     }
 
@@ -429,35 +448,50 @@ export class Circuit implements IStamper {
     const visitedNodes = new Set<string>();
     const dfsForest: WireTreeNode[] = [];
 
-    const buildDFS = (nodeKey: string, parentEdge: { wire: WireElement, isForward: boolean } | null): WireTreeNode => {
-      visitedNodes.add(nodeKey);
-      const nodeData = wireNodes.get(nodeKey)!;
-      const treeNode: WireTreeNode = { node: nodeKey, edgeToParent: parentEdge, children: [] };
+    for (const rootKey of wireNodes.keys()) {
+      if (visitedNodes.has(rootKey)) continue;
 
-      for (const edge of nodeData.wires) {
-        if (parentEdge && edge.wire === parentEdge.wire) continue;
+      const rootNode: WireTreeNode = { node: rootKey, edgeToParent: null, children: [] };
+      visitedNodes.add(rootKey);
 
-        const nextKey = edge.isForward ? ptKey(edge.wire.getPost(1)) : ptKey(edge.wire.getPost(0));
+      const stack: { treeNode: WireTreeNode; wireIndex: number }[] = [
+        { treeNode: rootNode, wireIndex: 0 }
+      ];
 
-        if (visitedNodes.has(nextKey)) {
-          // It's a back-edge (chord). Mark it so it gets 0 current.
-          edge.isChord = true;
-          // Find the corresponding edge in the destination node and mark it too
-          const destNode = wireNodes.get(nextKey)!;
-          const revEdge = destNode.wires.find(w => w.wire === edge.wire);
-          if (revEdge) revEdge.isChord = true;
+      while (stack.length > 0) {
+        const top = stack[stack.length - 1];
+        const { treeNode, wireIndex } = top;
+        const nodeKey = treeNode.node;
+        const nodeData = wireNodes.get(nodeKey)!;
+
+        if (wireIndex < nodeData.wires.length) {
+          const edge = nodeData.wires[wireIndex];
+          top.wireIndex++;
+
+          if (treeNode.edgeToParent && edge.wire === treeNode.edgeToParent.wire) {
+            continue;
+          }
+
+          const nextKey = edge.isForward ? ptKey(edge.wire.getPost(1)) : ptKey(edge.wire.getPost(0));
+
+          if (visitedNodes.has(nextKey)) {
+            edge.isChord = true;
+            const destNode = wireNodes.get(nextKey)!;
+            const revEdge = destNode.wires.find(w => w.wire === edge.wire);
+            if (revEdge) revEdge.isChord = true;
+          } else {
+            visitedNodes.add(nextKey);
+            const childEdge = { wire: edge.wire, isForward: edge.isForward };
+            const childNode: WireTreeNode = { node: nextKey, edgeToParent: childEdge, children: [] };
+            treeNode.children.push(childNode);
+            stack.push({ treeNode: childNode, wireIndex: 0 });
+          }
         } else {
-          // It's a tree edge
-          treeNode.children.push(buildDFS(nextKey, { wire: edge.wire, isForward: edge.isForward }));
+          stack.pop();
         }
       }
-      return treeNode;
-    };
 
-    for (const nodeKey of wireNodes.keys()) {
-      if (!visitedNodes.has(nodeKey)) {
-        dfsForest.push(buildDFS(nodeKey, null));
-      }
+      dfsForest.push(rootNode);
     }
 
     // Save the traversal data for calcWireCurrents
@@ -801,33 +835,51 @@ export class Circuit implements IStamper {
     const wireNodesData = this._wireNodesData;
 
     // Post-order traversal to compute currents from leaves up to roots
-    const computeCurrents = (treeNode: WireTreeNode): number => {
-      let totalCurrent = 0;
-      for (const contributor of wireNodesData.get(treeNode.node)!.nonWireContributors) {
-        totalCurrent += contributor.element.getCurrentIntoNode(contributor.post);
-      }
-
-      for (const child of treeNode.children) {
-        const childCurrent = computeCurrents(child);
-        totalCurrent += childCurrent;
-      }
-
-      if (treeNode.edgeToParent) {
-        // The current flowing *into* the treeNode from its subtree must flow *out* through the edgeToParent.
-        // If the edge points towards the parent (isForward=false), current is positive.
-        // If the edge points away from the parent (isForward=true), current is negative.
-        if (treeNode.edgeToParent.isForward) {
-           treeNode.edgeToParent.wire.current = -totalCurrent;
+    const postOrderList: WireTreeNode[] = [];
+    for (const tree of forest) {
+      const visitStack: { node: WireTreeNode; childIndex: number }[] = [
+        { node: tree, childIndex: 0 }
+      ];
+      while (visitStack.length > 0) {
+        const top = visitStack[visitStack.length - 1];
+        if (top.childIndex < top.node.children.length) {
+          const nextChild = top.node.children[top.childIndex];
+          top.childIndex++;
+          visitStack.push({ node: nextChild, childIndex: 0 });
         } else {
-           treeNode.edgeToParent.wire.current = totalCurrent;
+          postOrderList.push(top.node);
+          visitStack.pop();
+        }
+      }
+    }
+
+    const nodeCurrents = new Map<WireTreeNode, number>();
+
+    for (const node of postOrderList) {
+      let totalCurrent = 0;
+      const data = wireNodesData.get(node.node);
+      if (data) {
+        for (const contributor of data.nonWireContributors) {
+          totalCurrent += contributor.element.getCurrentIntoNode(contributor.post);
         }
       }
 
-      return totalCurrent;
-    };
+      for (const child of node.children) {
+        totalCurrent += nodeCurrents.get(child) || 0;
+      }
 
-    for (const tree of forest) {
-      computeCurrents(tree);
+      nodeCurrents.set(node, totalCurrent);
+
+      if (node.edgeToParent) {
+        // The current flowing *into* the treeNode from its subtree must flow *out* through the edgeToParent.
+        // If the edge points towards the parent (isForward=false), current is positive.
+        // If the edge points away from the parent (isForward=true), current is negative.
+        if (node.edgeToParent.isForward) {
+          node.edgeToParent.wire.current = -totalCurrent;
+        } else {
+          node.edgeToParent.wire.current = totalCurrent;
+        }
+      }
     }
   }
 

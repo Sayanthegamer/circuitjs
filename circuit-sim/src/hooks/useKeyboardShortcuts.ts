@@ -15,29 +15,51 @@ export function useKeyboardShortcuts() {
         return;
       }
 
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
+
       const { circuit, simRunning, setSimRunning } = useCircuitStore.getState();
       const { selectedId, setSelectedId, setPlacing, setTool } = useUIStore.getState();
 
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedId) {
+      switch (e.key) {
+        case 'Delete':
+        case 'Backspace':
+          if (selectedId) {
+            e.preventDefault();
+            circuit.removeElement(selectedId);
+            circuit.analyzeCircuit();
+            setSelectedId(null);
+          }
+          break;
+        case 'Escape':
+          setPlacing(null);
+          setTool('select');
+          break;
+        case 'r':
+        case 'R':
+          setTool('resistor');
+          break;
+        case 'w':
+        case 'W':
+          setTool('wire');
+          break;
+        case 'v':
+        case 'V':
+          setTool('voltage');
+          break;
+        case 'g':
+        case 'G':
+          setTool('ground');
+          break;
+        case 's':
+        case 'S':
+          setTool('select');
+          break;
+        case ' ':
           e.preventDefault();
-          circuit.removeElement(selectedId);
-          circuit.analyzeCircuit();
-          setSelectedId(null);
-        }
-      }
-      if (e.key === 'Escape') {
-        setPlacing(null);
-        setTool('select');
-      }
-      if (e.key === 'r' || e.key === 'R') setTool('resistor');
-      if (e.key === 'w' || e.key === 'W') setTool('wire');
-      if (e.key === 'v' || e.key === 'V') setTool('voltage');
-      if (e.key === 'g' || e.key === 'G') setTool('ground');
-      if (e.key === 's' || e.key === 'S') setTool('select');
-      if (e.key === ' ') {
-        e.preventDefault();
-        setSimRunning(!simRunning);
+          setSimRunning(!simRunning);
+          break;
       }
     };
 

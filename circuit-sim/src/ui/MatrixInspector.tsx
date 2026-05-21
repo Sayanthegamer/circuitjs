@@ -32,6 +32,21 @@ const MatrixCell: React.FC<{ value: number; precision: number; highlight: boolea
 };
 
 const MatrixInspector: React.FC<MatrixProps> = ({ data, label, precision = 3, highlightChanges = true }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex flex-col gap-2 group min-w-[120px]">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[9px] font-bold uppercase tracking-widest text-text-muted group-hover:text-primary transition-colors">
+            {label}
+          </span>
+        </div>
+        <div className="px-3 py-4 text-center border border-dashed border-border-hairline rounded-sm text-text-muted text-[10px] italic">
+          Matrix too large to display
+        </div>
+      </div>
+    );
+  }
+
   const isVector = !Array.isArray(data[0]);
   const rows = isVector ? (data as number[]).length : (data as number[][]).length;
   const cols = isVector ? 1 : (data as number[][])[0].length;

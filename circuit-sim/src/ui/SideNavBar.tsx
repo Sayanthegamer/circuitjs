@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface NavItem {
   label: string;
@@ -16,6 +16,35 @@ const NAV_ITEMS: NavItem[] = [
 export const SideNavBar: React.FC = () => {
   const [activeItem, setActiveItem] = useState('intro');
 
+  useEffect(() => {
+    const observerOptions = {
+      root: null,
+      rootMargin: '-80px 0px -60% 0px',
+      threshold: 0,
+    };
+
+    const observerCallback = (entries: IntersectionObserverEntry[]) => {
+      const intersecting = entries.filter(e => e.isIntersecting);
+      if (intersecting.length > 0) {
+        intersecting.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        setActiveItem(intersecting[0].target.id);
+      }
+    };
+
+    const observer = new IntersectionObserver(observerCallback, observerOptions);
+
+    NAV_ITEMS.forEach((item) => {
+      const element = document.getElementById(item.targetId);
+      if (element) {
+        observer.observe(element);
+      }
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   const handleNavClick = (targetId: string) => {
     setActiveItem(targetId);
     const element = document.getElementById(targetId);
@@ -32,6 +61,7 @@ export const SideNavBar: React.FC = () => {
           <button 
             key={item.targetId}
             onClick={() => handleNavClick(item.targetId)}
+            aria-current={activeItem === item.targetId ? 'location' : undefined}
             className={`w-full flex items-center gap-3 px-3 py-2 text-left text-xs transition-colors cursor-pointer select-none rounded-none focus:outline-none ${
               activeItem === item.targetId 
                 ? 'bg-surface-bright text-primary border-l-2 border-primary font-bold' 

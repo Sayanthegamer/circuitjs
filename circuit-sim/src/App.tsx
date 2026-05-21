@@ -52,11 +52,15 @@ function App() {
     return () => clearTimeout(timer);
   }, [viewMode, resizeCanvas]);
 
-  // Init circuit and camera on mount
+  // Resize listener
   useEffect(() => {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, [resizeCanvas]);
 
+  // Init circuit and camera on mount
+  useEffect(() => {
     const { circuit, camera: cam, setProbedItems } = useCircuitStore.getState();
     circuit.clearElements();
     circuit.stopMessage = null;
@@ -86,9 +90,7 @@ function App() {
     if (canvasRef.current) {
       cam.centerOn(-40, -40, 240, 240, canvasRef.current.width / dpr, canvasRef.current.height / dpr);
     }
-
-    return () => window.removeEventListener('resize', resizeCanvas);
-  }, [resizeCanvas]);
+  }, []);
 
   // Core Loops & Interactions
   useSimulationLoop(canvasRef);

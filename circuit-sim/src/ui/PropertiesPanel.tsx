@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import type {
   ResistorElement,
   VoltageSourceElement,
@@ -18,6 +19,25 @@ export function PropertiesPanel() {
   const setProbedItems = useCircuitStore((s) => s.setProbedItems);
 
   const selectedElm = selectedId ? circuit.getElement(selectedId) ?? null : null;
+
+  const [resistanceStr, setResistanceStr] = useState('');
+  const [voltageStr, setVoltageStr] = useState('');
+  const [capacitanceStr, setCapacitanceStr] = useState('');
+  const [inductanceStr, setInductanceStr] = useState('');
+
+  useEffect(() => {
+    if (selectedElm) {
+      if (selectedElm.type === 'resistor') {
+        setResistanceStr((selectedElm as ResistorElement).resistance.toString());
+      } else if (selectedElm.type === 'voltage') {
+        setVoltageStr((selectedElm as VoltageSourceElement).maxVoltage.toString());
+      } else if (selectedElm.type === 'capacitor') {
+        setCapacitanceStr((selectedElm as CapacitorElement).capacitance.toString());
+      } else if (selectedElm.type === 'inductor') {
+        setInductanceStr((selectedElm as InductorElement).inductance.toString());
+      }
+    }
+  }, [selectedId, selectedElm]);
 
   if (!selectedElm) {
     return (
@@ -48,7 +68,7 @@ export function PropertiesPanel() {
     }
   };
 
-  const handlePropChange = (prop: string, value: number) => {
+  const handlePropChange = (prop: 'resistance' | 'voltage' | 'capacitance' | 'inductance' | 'closed', value: number) => {
     if (selectedElm.type === 'resistor' && prop === 'resistance') {
       (selectedElm as ResistorElement).resistance = value;
     } else if (selectedElm.type === 'voltage' && prop === 'voltage') {
@@ -61,6 +81,53 @@ export function PropertiesPanel() {
       (selectedElm as SwitchElement).closed = value === 1;
     }
     circuit.analyzeCircuit();
+  };
+
+  const commitResistance = () => {
+    let val = parseFloat(resistanceStr);
+    if (isNaN(val) || val <= 0) {
+      setResistanceStr((selectedElm as ResistorElement).resistance.toString());
+    } else {
+      handlePropChange('resistance', val);
+      setResistanceStr(val.toString());
+    }
+  };
+
+  const commitVoltage = () => {
+    let val = parseFloat(voltageStr);
+    if (isNaN(val)) {
+      setVoltageStr((selectedElm as VoltageSourceElement).maxVoltage.toString());
+    } else {
+      handlePropChange('voltage', val);
+      setVoltageStr(val.toString());
+    }
+  };
+
+  const commitCapacitance = () => {
+    let val = parseFloat(capacitanceStr);
+    if (isNaN(val) || val <= 0) {
+      setCapacitanceStr((selectedElm as CapacitorElement).capacitance.toString());
+    } else {
+      handlePropChange('capacitance', val);
+      setCapacitanceStr(val.toString());
+    }
+  };
+
+  const commitInductance = () => {
+    let val = parseFloat(inductanceStr);
+    if (isNaN(val) || val <= 0) {
+      setInductanceStr((selectedElm as InductorElement).inductance.toString());
+    } else {
+      handlePropChange('inductance', val);
+      setInductanceStr(val.toString());
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, commitFn: () => void) => {
+    if (e.key === 'Enter') {
+      commitFn();
+      (e.target as HTMLInputElement).blur();
+    }
   };
 
   const handleClose = () => {
@@ -115,11 +182,11 @@ export function PropertiesPanel() {
                 </label>
                 <div className="relative">
                   <input
-                    type="number"
-                    min={1}
-                    step={100}
-                    value={(selectedElm as ResistorElement).resistance}
-                    onChange={(e) => handlePropChange('resistance', Number(e.target.value))}
+                    type="text"
+                    value={resistanceStr}
+                    onChange={(e) => setResistanceStr(e.target.value)}
+                    onBlur={commitResistance}
+                    onKeyDown={(e) => handleKeyDown(e, commitResistance)}
                     className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
@@ -136,10 +203,11 @@ export function PropertiesPanel() {
                 </label>
                 <div className="relative">
                   <input
-                    type="number"
-                    step={0.5}
-                    value={(selectedElm as VoltageSourceElement).maxVoltage}
-                    onChange={(e) => handlePropChange('voltage', Number(e.target.value))}
+                    type="text"
+                    value={voltageStr}
+                    onChange={(e) => setVoltageStr(e.target.value)}
+                    onBlur={commitVoltage}
+                    onKeyDown={(e) => handleKeyDown(e, commitVoltage)}
                     className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
@@ -156,10 +224,11 @@ export function PropertiesPanel() {
                 </label>
                 <div className="relative">
                   <input
-                    type="number"
-                    step={1e-6}
-                    value={(selectedElm as CapacitorElement).capacitance}
-                    onChange={(e) => handlePropChange('capacitance', Number(e.target.value))}
+                    type="text"
+                    value={capacitanceStr}
+                    onChange={(e) => setCapacitanceStr(e.target.value)}
+                    onBlur={commitCapacitance}
+                    onKeyDown={(e) => handleKeyDown(e, commitCapacitance)}
                     className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
@@ -176,10 +245,11 @@ export function PropertiesPanel() {
                 </label>
                 <div className="relative">
                   <input
-                    type="number"
-                    step={0.1}
-                    value={(selectedElm as InductorElement).inductance}
-                    onChange={(e) => handlePropChange('inductance', Number(e.target.value))}
+                    type="text"
+                    value={inductanceStr}
+                    onChange={(e) => setInductanceStr(e.target.value)}
+                    onBlur={commitInductance}
+                    onKeyDown={(e) => handleKeyDown(e, commitInductance)}
                     className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">

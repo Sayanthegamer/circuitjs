@@ -15,6 +15,16 @@ import {
 } from '../engine';
 import { GRID_SIZE } from '../renderer/grid';
 
+interface PointerSnapshot {
+  pointerId: number;
+  clientX: number;
+  clientY: number;
+  pointerType: string;
+  isPrimary: boolean;
+}
+
+const coarseMql = typeof window !== 'undefined' ? window.matchMedia('(pointer: coarse)') : null;
+
 // --- Utility: distance from a point to an element's body ---
 function distToElement(px: number, py: number, elm: ICircuitElement): number {
   const { x: x1, y: y1, x2, y2 } = elm;
@@ -40,7 +50,7 @@ function snapToGrid(value: number): number {
 export function useCanvasInteraction(
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
 ) {
-  const activePointers = useRef(new Map<number, React.PointerEvent>());
+  const activePointers = useRef(new Map<number, PointerSnapshot>());
   const lastPinchDist = useRef<number | null>(null);
 
   const getWorldPos = useCallback((e: React.PointerEvent) => {
@@ -60,7 +70,13 @@ export function useCanvasInteraction(
 
     // Capture pointer to canvas
     canvas.setPointerCapture(e.pointerId);
-    activePointers.current.set(e.pointerId, e);
+    activePointers.current.set(e.pointerId, {
+      pointerId: e.pointerId,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      pointerType: e.pointerType,
+      isPrimary: e.isPrimary,
+    });
 
     const rect = canvas.getBoundingClientRect();
     const { camera, circuit } = useCircuitStore.getState();
@@ -153,7 +169,13 @@ export function useCanvasInteraction(
     const rect = canvas.getBoundingClientRect();
 
     if (activePointers.current.has(e.pointerId)) {
-      activePointers.current.set(e.pointerId, e);
+      activePointers.current.set(e.pointerId, {
+        pointerId: e.pointerId,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        pointerType: e.pointerType,
+        isPrimary: e.isPrimary,
+      });
     }
 
     const { camera, circuit } = useCircuitStore.getState();
@@ -204,7 +226,7 @@ export function useCanvasInteraction(
     if (placing && placing.phase === 'second') {
       const world = getWorldPos(e);
       let yOffset = 0;
-      if (window.matchMedia('(pointer: coarse)').matches) {
+      if (coarseMql?.matches) {
           yOffset = -40; // coarse pointer fat-finger offset
       }
       let finalWorld = world;
@@ -276,12 +298,10 @@ export function useCanvasInteraction(
           newElm = new ResistorElement(placing.x1, placing.y1, x2, y2, 1000);
           break;
         case 'capacitor':
-          newElm = new CapacitorElement(placing.x1, placing.y1, x2, y2);
-          (newElm as CapacitorElement).capacitance = 1e-3;
+          newElm = new CapacitorElement(placing.x1, placing.y1, x2, y2, 1e-3);
           break;
         case 'inductor':
-          newElm = new InductorElement(placing.x1, placing.y1, x2, y2);
-          (newElm as InductorElement).inductance = 1;
+          newElm = new InductorElement(placing.x1, placing.y1, x2, y2, 1);
           break;
         case 'switch':
           newElm = new SwitchElement(placing.x1, placing.y1, x2, y2);

@@ -20,10 +20,29 @@ export function useSimulationLoop(
 ) {
   const rafRef = useRef(0);
   const animTimeRef = useRef(0);
-  const uiUpdateCounter = useRef(0);
+  
+  const ghostElmRef = useRef<ICircuitElement>({
+    id: 'ghost',
+    type: 'wire',
+    x: 0,
+    y: 0,
+    x2: 0,
+    y2: 0,
+    volts: [0, 0],
+    nodes: [0, 0],
+    getCurrent: () => 0,
+    stamp: () => {},
+    startIteration: () => {},
+    doStep: () => {},
+    calculateCurrent: () => {},
+    reset: () => {},
+  } as unknown as ICircuitElement);
 
   useEffect(() => {
-    const render = () => {
+    let lastTime = 0;
+    let elapsedTelemetry = 0;
+
+    const render = (time: DOMHighResTimeStamp) => {
       const canvas = canvasRef.current;
       if (!canvas) {
         rafRef.current = requestAnimationFrame(render);
@@ -34,6 +53,16 @@ export function useSimulationLoop(
         rafRef.current = requestAnimationFrame(render);
         return;
       }
+
+      let dt = 0;
+      if (lastTime !== 0) {
+        dt = (time - lastTime) / 1000;
+      } else {
+        dt = 1 / 60;
+      }
+      lastTime = time;
+      if (dt > 0.1) dt = 0.1;
+      if (dt < 0) dt = 0;
 
       const dpr = window.devicePixelRatio || 1;
       const w = canvas.width / dpr;
@@ -46,8 +75,9 @@ export function useSimulationLoop(
       // --- Simulate ---
       let steps = 0;
       if (simRunning && !circuit.stopMessage) {
-        const targetSteps = Math.round(circuit.maxTimeStep > 0 ? (1 / 60) / circuit.maxTimeStep : 100);
-        const maxSteps = Math.min(targetSteps, 2000);
+        const stepSize = circuit.maxTimeStep > 0 ? circuit.maxTimeStep : 1e-4;
+        const targetSteps = Math.round(dt / stepSize);
+        const maxSteps = Math.max(1, Math.min(targetSteps, 2000));
         for (let i = 0; i < maxSteps; i++) {
           if (!circuit.runStep()) break;
           steps++;
@@ -55,7 +85,7 @@ export function useSimulationLoop(
       }
 
       // Advance animation time
-      animTimeRef.current += 1 / 60;
+      animTimeRef.current += dt;
 
       // Update camera interpolation
       camera.update();
@@ -129,12 +159,13 @@ export function useSimulationLoop(
       // Draw ghost element being placed
       if (placing && placing.phase === 'second') {
         ctx.globalAlpha = 0.4;
-        const mockElm = {
-          type: placing.type, x: placing.x1, y: placing.y1, x2: placing.x2, y2: placing.y2,
-          volts: [0, 0], nodes: [0, 0],
-          getCurrent: () => 0,
-        } as unknown as ICircuitElement;
-        drawElement(ctx, mockElm, false, 0, 1);
+        const ghost = ghostElmRef.current;
+        ghost.type = placing.type;
+        ghost.x = placing.x1;
+        ghost.y = placing.y1;
+        ghost.x2 = placing.x2;
+        ghost.y2 = placing.y2;
+        drawElement(ctx, ghost, false, 0, 1);
         ctx.globalAlpha = 1;
       }
 
@@ -156,22 +187,24 @@ export function useSimulationLoop(
         plotterRef.current.pushData(circuit.t, values);
       }
 
-      // --- Update UI telemetry at ~4Hz ---
-      uiUpdateCounter.current++;
-      if (uiUpdateCounter.current % 15 === 0) {
+      // --- Update UI telemetry ---
+      elapsedTelemetry += dt;
+      if (elapsedTelemetry >= 0.25) {
+        elapsedTelemetry = 0;
+        const tooLarge = circuit.lastG && circuit.lastG.length > 50;
         useCircuitStore.getState().updateTelemetry({
           simTime: circuit.t,
           stepsPerFrame: steps,
           stopMessage: circuit.stopMessage,
-          matrixG: circuit.lastG && circuit.lastG.length > 0
-            ? circuit.lastG.map(row => [...row])
-            : [[0]],
-          vectorV: circuit.lastV && circuit.lastV.length > 0
-            ? [...circuit.lastV]
-            : [],
-          vectorI: circuit.lastI && circuit.lastI.length > 0
-            ? [...circuit.lastI]
-            : [],
+          matrixG: tooLarge
+            ? []
+            : (circuit.lastG && circuit.lastG.length > 0 ? circuit.lastG.map(row => [...row]) : [[0]]),
+          vectorV: tooLarge
+            ? []
+            : (circuit.lastV && circuit.lastV.length > 0 ? [...circuit.lastV] : []),
+          vectorI: tooLarge
+            ? []
+            : (circuit.lastI && circuit.lastI.length > 0 ? [...circuit.lastI] : []),
           nrErrors: circuit.lastErrors && circuit.lastErrors.length > 0
             ? [...circuit.lastErrors]
             : [],

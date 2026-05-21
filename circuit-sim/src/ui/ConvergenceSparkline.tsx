@@ -24,7 +24,11 @@ const ConvergenceSparkline: React.FC<ConvergenceSparklineProps> = ({
     
     // Logarithmic scaling for error visualization (since errors can span many decades)
     const logMin = Math.log10(tolerance) - 1;
-    const logMax = Math.max(Math.log10(errors[0]), logMin + 2);
+    const firstError = Math.max(errors[0] || 0, 1e-12);
+    let logMax = Math.max(Math.log10(firstError), logMin + 2);
+    if (Math.abs(logMax - logMin) < 1e-9) {
+      logMax = logMin + 1;
+    }
     
     return errors.map((err, i) => {
       const x = padding + (i / (errors.length - 1)) * (width - 2 * padding);

@@ -41,7 +41,7 @@ export const WhitepaperContent: React.FC<WhitepaperContentProps> = ({ canvasCont
           </h2>
           <p className="text-text-secondary mb-6 leading-relaxed">
             For transient analysis, time-varying components (such as capacitors and inductors) are discretized using
-            numerical integration methods. The standard engine uses the **Trapezoidal Rule** to map differential
+            numerical integration methods. The standard engine uses the <strong>Trapezoidal Rule</strong> to map differential
             equations into algebraic equivalents at each timestep <span className="font-mono text-accent">dt</span>.
           </p>
 
@@ -74,7 +74,7 @@ export const WhitepaperContent: React.FC<WhitepaperContentProps> = ({ canvasCont
             Modified Nodal Analysis & Newton-Raphson
           </h2>
           <p className="text-text-secondary leading-relaxed">
-            The core engine formulates circuit equations via **Modified Nodal Analysis (MNA)**. This approach produces a
+            The core engine formulates circuit equations via <strong>Modified Nodal Analysis (MNA)</strong>. This approach produces a
             system of equations in the form:
           </p>
           <div className="my-4 pl-4 border-l-2 border-primary/40 font-mono text-text-primary text-sm">
@@ -85,7 +85,7 @@ export const WhitepaperContent: React.FC<WhitepaperContentProps> = ({ canvasCont
           </p>
           <p className="text-text-secondary mt-4 leading-relaxed">
             For circuits containing non-linear elements (like diodes), the solver iteratively linearizes each component
-            around its operating point using the **Newton-Raphson method**, converging until the voltage step size falls
+            around its operating point using the <strong>Newton-Raphson method</strong>, converging until the voltage step size falls
             below <span className="font-mono text-accent">1e-6</span>.
           </p>
         </header>

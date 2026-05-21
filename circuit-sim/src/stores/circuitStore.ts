@@ -33,6 +33,7 @@ interface CircuitState {
   vectorV: number[];
   vectorI: number[];
   nrErrors: number[];
+  telemetryVersion: number;
 
   // Probed items for oscilloscope
   probedItems: ProbedItem[];
@@ -61,6 +62,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
   vectorV: [],
   vectorI: [],
   nrErrors: [],
+  telemetryVersion: 0,
 
   probedItems: [],
   plotterRef: { current: null },
@@ -68,7 +70,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
   setSimRunning: (r) => set({ simRunning: r }),
   toggleSimRunning: () => set((s) => ({ simRunning: !s.simRunning })),
 
-  updateTelemetry: (data) => set({
+  updateTelemetry: (data) => set((s) => ({
     matrixG: data.matrixG,
     vectorV: data.vectorV,
     vectorI: data.vectorI,
@@ -76,12 +78,22 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
     simTime: data.simTime,
     stepsPerFrame: data.stepsPerFrame,
     stopMessage: data.stopMessage,
-  }),
+    telemetryVersion: s.telemetryVersion + 1,
+  })),
 
   setProbedItems: (items) => set({ probedItems: items }),
 
   resetSim: () => {
     get().circuit.reset();
-    set({ simTime: 0, stopMessage: null });
+    set({
+      simTime: 0,
+      stepsPerFrame: 0,
+      stopMessage: null,
+      matrixG: [[0]],
+      vectorV: [],
+      vectorI: [],
+      nrErrors: [],
+      telemetryVersion: 0,
+    });
   },
 }));
