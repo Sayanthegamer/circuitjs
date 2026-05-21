@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type {
   ResistorElement,
   VoltageSourceElement,
@@ -6,49 +6,40 @@ import type {
   InductorElement,
   SwitchElement,
 } from '../engine';
+import { Circuit, CircuitElement } from '../engine';
 import { voltageToColor } from '../renderer/voltage-colors';
 import { useCircuitStore } from '../stores/circuitStore';
 import { useUIStore } from '../stores/uiStore';
 import { X } from 'lucide-react';
+import type { ProbedItem } from './Plotter';
 
-export function PropertiesPanel() {
-  const selectedId = useUIStore((s) => s.selectedId);
-  const setSelectedId = useUIStore((s) => s.setSelectedId);
-  const circuit = useCircuitStore((s) => s.circuit);
-  const probedItems = useCircuitStore((s) => s.probedItems);
-  const setProbedItems = useCircuitStore((s) => s.setProbedItems);
+interface PropertiesPanelInnerProps {
+  selectedElm: CircuitElement;
+  circuit: Circuit;
+  probedItems: ProbedItem[];
+  setProbedItems: (items: ProbedItem[]) => void;
+  onClose: () => void;
+}
 
-  const selectedElm = selectedId ? circuit.getElement(selectedId) ?? null : null;
-
-  const [resistanceStr, setResistanceStr] = useState('');
-  const [voltageStr, setVoltageStr] = useState('');
-  const [capacitanceStr, setCapacitanceStr] = useState('');
-  const [inductanceStr, setInductanceStr] = useState('');
-
-  useEffect(() => {
-    if (selectedElm) {
-      if (selectedElm.type === 'resistor') {
-        setResistanceStr((selectedElm as ResistorElement).resistance.toString());
-      } else if (selectedElm.type === 'voltage') {
-        setVoltageStr((selectedElm as VoltageSourceElement).maxVoltage.toString());
-      } else if (selectedElm.type === 'capacitor') {
-        setCapacitanceStr((selectedElm as CapacitorElement).capacitance.toString());
-      } else if (selectedElm.type === 'inductor') {
-        setInductanceStr((selectedElm as InductorElement).inductance.toString());
-      }
-    }
-  }, [selectedId, selectedElm]);
-
-  if (!selectedElm) {
-    return (
-      <div className="p-6 h-full flex flex-col items-center justify-center text-center opacity-40 select-none">
-        <i className="material-icons text-4xl mb-4 text-text-muted">settings_input_component</i>
-        <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-text-muted leading-relaxed">
-          Select a component<br />to inspect
-        </p>
-      </div>
-    );
-  }
+function PropertiesPanelInner({
+  selectedElm,
+  circuit,
+  probedItems,
+  setProbedItems,
+  onClose,
+}: PropertiesPanelInnerProps) {
+  const [resistanceStr, setResistanceStr] = useState(() =>
+    selectedElm.type === 'resistor' ? (selectedElm as ResistorElement).resistance.toString() : ''
+  );
+  const [voltageStr, setVoltageStr] = useState(() =>
+    selectedElm.type === 'voltage' ? (selectedElm as VoltageSourceElement).maxVoltage.toString() : ''
+  );
+  const [capacitanceStr, setCapacitanceStr] = useState(() =>
+    selectedElm.type === 'capacitor' ? (selectedElm as CapacitorElement).capacitance.toString() : ''
+  );
+  const [inductanceStr, setInductanceStr] = useState(() =>
+    selectedElm.type === 'inductor' ? (selectedElm as InductorElement).inductance.toString() : ''
+  );
 
   const isProbed = (prop: 'V1' | 'V2' | 'I' | 'Vdiff') =>
     probedItems.some(p => p.elmId === selectedElm.id && p.prop === prop);
@@ -73,6 +64,7 @@ export function PropertiesPanel() {
     pushHistory();
 
     if (selectedElm.type === 'resistor' && prop === 'resistance') {
+      // eslint-disable-next-line react-hooks/immutability
       (selectedElm as ResistorElement).resistance = value;
     } else if (selectedElm.type === 'voltage' && prop === 'voltage') {
       (selectedElm as VoltageSourceElement).maxVoltage = value;
@@ -88,7 +80,7 @@ export function PropertiesPanel() {
   };
 
   const commitResistance = () => {
-    let val = parseFloat(resistanceStr);
+    const val = parseFloat(resistanceStr);
     if (isNaN(val) || val <= 0) {
       setResistanceStr((selectedElm as ResistorElement).resistance.toString());
     } else {
@@ -98,7 +90,7 @@ export function PropertiesPanel() {
   };
 
   const commitVoltage = () => {
-    let val = parseFloat(voltageStr);
+    const val = parseFloat(voltageStr);
     if (isNaN(val)) {
       setVoltageStr((selectedElm as VoltageSourceElement).maxVoltage.toString());
     } else {
@@ -108,7 +100,7 @@ export function PropertiesPanel() {
   };
 
   const commitCapacitance = () => {
-    let val = parseFloat(capacitanceStr);
+    const val = parseFloat(capacitanceStr);
     if (isNaN(val) || val <= 0) {
       setCapacitanceStr((selectedElm as CapacitorElement).capacitance.toString());
     } else {
@@ -118,7 +110,7 @@ export function PropertiesPanel() {
   };
 
   const commitInductance = () => {
-    let val = parseFloat(inductanceStr);
+    const val = parseFloat(inductanceStr);
     if (isNaN(val) || val <= 0) {
       setInductanceStr((selectedElm as InductorElement).inductance.toString());
     } else {
@@ -134,10 +126,6 @@ export function PropertiesPanel() {
     }
   };
 
-  const handleClose = () => {
-    setSelectedId(null);
-  };
-
   return (
     <div className="flex flex-col h-full bg-surface text-text-primary border-l border-border-hairline select-none">
       {/* Header */}
@@ -148,7 +136,7 @@ export function PropertiesPanel() {
         </div>
         <button
           className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
-          onClick={handleClose}
+          onClick={onClose}
           aria-label="Close properties"
         >
           <X size={14} />
@@ -320,82 +308,86 @@ export function PropertiesPanel() {
               </span>
             </div>
 
-            {/* V2 Readout */}
-            <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[8px] text-text-muted uppercase font-bold">Node V₂</span>
-                <button
-                  onClick={() => toggleProbe('V2')}
-                  className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                    isProbed('V2') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
-                  }`}
-                >
-                  <i className="material-icons text-[10px]">
-                    {isProbed('V2') ? 'check_circle' : 'add_circle_outline'}
-                  </i>
-                  {isProbed('V2') ? 'Probed' : 'Probe'}
-                </button>
-              </div>
-              <span
-                className="font-mono text-xs font-bold tabular-nums"
-                style={{ color: voltageToColor(selectedElm.volts[1] || 0) }}
-              >
-                {(selectedElm.volts[1] || 0).toFixed(3)} V
-              </span>
-            </div>
+            {selectedElm.getPostCount() > 1 && (
+              <>
+                {/* V2 Readout */}
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[8px] text-text-muted uppercase font-bold">Node V₂</span>
+                    <button
+                      onClick={() => toggleProbe('V2')}
+                      className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                        isProbed('V2') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
+                      }`}
+                    >
+                      <i className="material-icons text-[10px]">
+                        {isProbed('V2') ? 'check_circle' : 'add_circle_outline'}
+                      </i>
+                      {isProbed('V2') ? 'Probed' : 'Probe'}
+                    </button>
+                  </div>
+                  <span
+                    className="font-mono text-xs font-bold tabular-nums"
+                    style={{ color: voltageToColor(selectedElm.volts[1] || 0) }}
+                  >
+                    {(selectedElm.volts[1] || 0).toFixed(3)} V
+                  </span>
+                </div>
 
-            {/* Vdiff Readout */}
-            <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[8px] text-text-muted uppercase font-bold">ΔV (V_drop)</span>
-                <button
-                  onClick={() => toggleProbe('Vdiff')}
-                  className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                    isProbed('Vdiff') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
-                  }`}
-                >
-                  <i className="material-icons text-[10px]">
-                    {isProbed('Vdiff') ? 'check_circle' : 'add_circle_outline'}
-                  </i>
-                  {isProbed('Vdiff') ? 'Probed' : 'Probe'}
-                </button>
-              </div>
-              <span
-                className="font-mono text-xs font-bold tabular-nums"
-                style={{ color: voltageToColor(selectedElm.getVoltageDiff()) }}
-              >
-                {selectedElm.getVoltageDiff().toFixed(3)} V
-              </span>
-            </div>
+                {/* Vdiff Readout */}
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[8px] text-text-muted uppercase font-bold">ΔV (V_drop)</span>
+                    <button
+                      onClick={() => toggleProbe('Vdiff')}
+                      className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                        isProbed('Vdiff') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
+                      }`}
+                    >
+                      <i className="material-icons text-[10px]">
+                        {isProbed('Vdiff') ? 'check_circle' : 'add_circle_outline'}
+                      </i>
+                      {isProbed('Vdiff') ? 'Probed' : 'Probe'}
+                    </button>
+                  </div>
+                  <span
+                    className="font-mono text-xs font-bold tabular-nums"
+                    style={{ color: voltageToColor(selectedElm.getVoltageDiff()) }}
+                  >
+                    {selectedElm.getVoltageDiff().toFixed(3)} V
+                  </span>
+                </div>
 
-            {/* Current Readout */}
-            <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[8px] text-text-muted uppercase font-bold">Current (I)</span>
-                <button
-                  onClick={() => toggleProbe('I')}
-                  className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                    isProbed('I') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
-                  }`}
-                >
-                  <i className="material-icons text-[10px]">
-                    {isProbed('I') ? 'check_circle' : 'add_circle_outline'}
-                  </i>
-                  {isProbed('I') ? 'Probed' : 'Probe'}
-                </button>
-              </div>
-              <span className="font-mono text-xs text-instrument-current font-bold tabular-nums">
-                {(selectedElm.getCurrent() * 1000).toFixed(4)} mA
-              </span>
-            </div>
+                {/* Current Readout */}
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[8px] text-text-muted uppercase font-bold">Current (I)</span>
+                    <button
+                      onClick={() => toggleProbe('I')}
+                      className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                        isProbed('I') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
+                      }`}
+                    >
+                      <i className="material-icons text-[10px]">
+                        {isProbed('I') ? 'check_circle' : 'add_circle_outline'}
+                      </i>
+                      {isProbed('I') ? 'Probed' : 'Probe'}
+                    </button>
+                  </div>
+                  <span className="font-mono text-xs text-instrument-current font-bold tabular-nums">
+                    {(selectedElm.getCurrent() * 1000).toFixed(4)} mA
+                  </span>
+                </div>
 
-            {/* Power Readout */}
-            <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
-              <span className="text-[8px] text-text-muted uppercase font-bold">Power Dissipation</span>
-              <span className="font-mono text-xs text-text-primary font-bold tabular-nums">
-                {Math.abs(selectedElm.getVoltageDiff() * selectedElm.getCurrent() * 1000).toFixed(2)} mW
-              </span>
-            </div>
+                {/* Power Readout */}
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
+                  <span className="text-[8px] text-text-muted uppercase font-bold">Power Dissipation</span>
+                  <span className="font-mono text-xs text-text-primary font-bold tabular-nums">
+                    {Math.abs(selectedElm.getVoltageDiff() * selectedElm.getCurrent() * 1000).toFixed(2)} mW
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </section>
       </div>
@@ -406,5 +398,37 @@ export function PropertiesPanel() {
         <span>MNA SYSTEM READY</span>
       </div>
     </div>
+  );
+}
+
+export function PropertiesPanel() {
+  const selectedId = useUIStore((s) => s.selectedId);
+  const setSelectedId = useUIStore((s) => s.setSelectedId);
+  const circuit = useCircuitStore((s) => s.circuit);
+  const probedItems = useCircuitStore((s) => s.probedItems);
+  const setProbedItems = useCircuitStore((s) => s.setProbedItems);
+
+  const selectedElm = selectedId ? (circuit.getElement(selectedId) as CircuitElement) ?? null : null;
+
+  if (!selectedElm) {
+    return (
+      <div className="p-6 h-full flex flex-col items-center justify-center text-center opacity-40 select-none">
+        <i className="material-icons text-4xl mb-4 text-text-muted">settings_input_component</i>
+        <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-text-muted leading-relaxed">
+          Select a component<br />to inspect
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <PropertiesPanelInner
+      key={selectedElm.id}
+      selectedElm={selectedElm}
+      circuit={circuit}
+      probedItems={probedItems}
+      setProbedItems={setProbedItems}
+      onClose={() => setSelectedId(null)}
+    />
   );
 }

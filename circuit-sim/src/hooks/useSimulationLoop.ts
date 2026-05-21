@@ -8,7 +8,7 @@ import { useUIStore } from '../stores/uiStore';
 import { drawGrid } from '../renderer/grid';
 import { drawElement } from '../renderer/element-renderers';
 import type { ICircuitElement } from '../engine/types';
-import { ResistorElement, VoltageSourceElement } from '../engine';
+import { ResistorElement, VoltageSourceElement, CapacitorElement, InductorElement } from '../engine';
 
 /**
  * The core simulation + rendering loop.
@@ -54,12 +54,7 @@ export function useSimulationLoop(
         return;
       }
 
-      let dt = 0;
-      if (lastTime !== 0) {
-        dt = (time - lastTime) / 1000;
-      } else {
-        dt = 1 / 60;
-      }
+      let dt = lastTime !== 0 ? (time - lastTime) / 1000 : 1 / 60;
       lastTime = time;
       if (dt > 0.1) dt = 0.1;
       if (dt < 0) dt = 0;
@@ -137,6 +132,12 @@ export function useSimulationLoop(
             label = r >= 1e6 ? `${(r / 1e6).toFixed(1)}MΩ` : r >= 1000 ? `${(r / 1000).toFixed(1)}kΩ` : `${r}Ω`;
           } else if (elm.type === 'voltage') {
             label = `${(elm as VoltageSourceElement).maxVoltage}V`;
+          } else if (elm.type === 'capacitor') {
+            const c = (elm as CapacitorElement).capacitance;
+            label = c >= 1e-3 ? `${(c * 1000).toFixed(1)}mF` : c >= 1e-6 ? `${(c * 1e6).toFixed(1)}µF` : c >= 1e-9 ? `${(c * 1e9).toFixed(1)}nF` : `${(c * 1e12).toFixed(1)}pF`;
+          } else if (elm.type === 'inductor') {
+            const ind = (elm as InductorElement).inductance;
+            label = ind >= 1 ? `${ind.toFixed(1)}H` : ind >= 1e-3 ? `${(ind * 1000).toFixed(1)}mH` : `${(ind * 1e6).toFixed(1)}µH`;
           }
 
           if (label) {
