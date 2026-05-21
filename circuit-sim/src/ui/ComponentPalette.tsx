@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Minus, 
   Activity, 
@@ -75,13 +75,16 @@ export function ComponentPalette({ tool, setTool }: ComponentPaletteProps) {
     setCategories(categories.map(c => c.id === id ? { ...c, isOpen: !c.isOpen } : c));
   };
 
-  const filteredCategories = categories.map(cat => ({
-    ...cat,
-    items: cat.items.filter(item => 
-      item.label.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      item.desc.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  })).filter(cat => cat.items.length > 0);
+  const filteredCategories = useMemo(() => {
+    const lowerQuery = searchQuery.toLowerCase();
+    return categories.map(cat => ({
+      ...cat,
+      items: cat.items.filter(item =>
+        item.label.toLowerCase().includes(lowerQuery) ||
+        item.desc.toLowerCase().includes(lowerQuery)
+      )
+    })).filter(cat => cat.items.length > 0);
+  }, [categories, searchQuery]);
 
   return (
     <aside className="component-palette">
