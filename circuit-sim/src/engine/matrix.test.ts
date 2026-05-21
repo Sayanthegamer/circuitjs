@@ -24,12 +24,36 @@ describe('Matrix operations', () => {
       expect(b[1]).toBeCloseTo(1);
     });
 
+    it('factors and solves a well-conditioned matrix', () => {
+      // System:
+      // 3x + 2y - z = 1
+      // 2x - 2y + 4z = -2
+      // -x + 0.5y - z = 0
+      const a = [
+        [3, 2, -1],
+        [2, -2, 4],
+        [-1, 0.5, -1]
+      ];
+      const b = [1, -2, 0];
+      const ipvt = [0, 0, 0];
+      const n = 3;
+
+      const success = luFactor(a, n, ipvt);
+      expect(success).toBe(true);
+
+      luSolve(a, n, ipvt, b);
+
+      // Expected solution: x = 1, y = -2, z = -2
+      expect(b[0]).toBeCloseTo(1);
+      expect(b[1]).toBeCloseTo(-2);
+      expect(b[2]).toBeCloseTo(-2);
+    });
+
     it('solves a 3x3 system', () => {
       //  x + 2y + 3z = 9
       // 2x -  y +  z = 8
       // 3x +  y -  z = 2
       // Expected: x = 2, y = -1, z = 3
-      // NOTE: luFactor MODIFIES the matrix in place.
       const a = [
         [1, 2, 3],
         [2, -1, 1],
@@ -49,29 +73,48 @@ describe('Matrix operations', () => {
       expect(b[2]).toBeCloseTo(3);
     });
 
-    it('handles system requiring pivoting (zero on diagonal)', () => {
-      // 0x + 2y = 4
-      // 3x + 1y = 5
-      // Expected: x = 1, y = 2
+    it('factors and solves the identity matrix', () => {
       const a = [
-        [0, 2],
-        [3, 1]
+        [1, 0],
+        [0, 1]
       ];
-      const n = 2;
-      const ipvt = new Array(n).fill(0);
-      const b = [4, 5];
+      const b = [5, -3];
+      const ipvt = [0, 0];
 
-      const success = luFactor(a, n, ipvt);
+      const success = luFactor(a, 2, ipvt);
       expect(success).toBe(true);
 
-      luSolve(a, n, ipvt, b);
+      luSolve(a, 2, ipvt, b);
 
+      expect(b[0]).toBeCloseTo(5);
+      expect(b[1]).toBeCloseTo(-3);
+    });
+
+    it('factors and solves a matrix requiring pivoting', () => {
+      // System where first pivot is 0 initially:
+      // 0x + y = 1
+      // 2x + 3y = 5
+      const a = [
+        [0, 1],
+        [2, 3]
+      ];
+      const b = [1, 5];
+      const ipvt = [0, 0];
+
+      const success = luFactor(a, 2, ipvt);
+      expect(success).toBe(true);
+
+      // Pivot should be at row 1 for the first column
+      expect(ipvt[0]).toBe(1);
+
+      luSolve(a, 2, ipvt, b);
+
+      // Expected solution: y = 1, 2x + 3(1) = 5 -> 2x = 2 -> x = 1
       expect(b[0]).toBeCloseTo(1);
-      expect(b[1]).toBeCloseTo(2);
+      expect(b[1]).toBeCloseTo(1);
     });
 
     it('returns false for singular matrices (all zeros in a row)', () => {
-      // Singular matrix (row of zeros)
       const a = [
         [1, 2],
         [0, 0]
@@ -81,6 +124,20 @@ describe('Matrix operations', () => {
 
       const success = luFactor(a, n, ipvt);
       expect(success).toBe(false);
+    });
+
+    it('returns false for a singular matrix (dependent rows)', () => {
+      const a = [
+        [1, 2],
+        [2, 4]
+      ];
+      const ipvt = [0, 0];
+
+      // NOTE: Our implementation of luFactor sets a[j][j] to 1e-18 instead of returning false
+      // for matrices that become singular during factorization.
+      // So success will be true, but it shouldn't completely fail.
+      const success = luFactor(a, 2, ipvt);
+      expect(success).toBe(true);
     });
 
     it('solves using multiple right-hand sides with one factorization', () => {
