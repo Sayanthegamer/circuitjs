@@ -698,10 +698,4 @@ function distToElement(px: number, py: number, elm: ICircuitElement): number {
   return Math.sqrt((px - nearX) ** 2 + (py - nearY) ** 2);
 }
 
-
-/** Snap a value to the nearest grid point */
-function snapToGrid(v: number): number {
-  return Math.round(v / GRID_SIZE) * GRID_SIZE;
-}
-
 export default App;

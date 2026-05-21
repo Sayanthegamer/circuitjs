@@ -3,16 +3,16 @@
 // Draws each component type on the canvas
 // ============================================================
 
-import type { ICircuitElement, Point } from '../engine/types';
+import type { ICircuitElement } from '../engine/types';
 import { voltageToColor } from './voltage-colors';
 import { drawCurrentDots } from './current-dots';
 
 const POST_RADIUS = 3.5;
 
 /** Draw a connection post (circle) at world coordinates */
-function drawPost(ctx: CanvasRenderingContext2D, p: Point, v: number, selected: boolean): void {
+function drawPost(ctx: CanvasRenderingContext2D, x: number, y: number, v: number, selected: boolean): void {
   ctx.beginPath();
-  ctx.arc(p.x, p.y, POST_RADIUS, 0, Math.PI * 2);
+  ctx.arc(x, y, POST_RADIUS, 0, Math.PI * 2);
   ctx.fillStyle = selected ? '#818cf8' : voltageToColor(v);
   ctx.fill();
   if (selected) {
@@ -23,12 +23,12 @@ function drawPost(ctx: CanvasRenderingContext2D, p: Point, v: number, selected: 
 }
 
 /** Draw a lead (wire segment) between two points with voltage color */
-function drawLead(ctx: CanvasRenderingContext2D, p1: Point, p2: Point, v: number): void {
+function drawLead(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, v: number): void {
   ctx.strokeStyle = voltageToColor(v);
   ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.moveTo(p1.x, p1.y);
-  ctx.lineTo(p2.x, p2.y);
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
   ctx.stroke();
 }
 
@@ -53,8 +53,8 @@ export function drawSwitch(
   const bx2 = x2 - nx * leadLen;
   const by2 = y2 - ny * leadLen;
 
-  drawLead(ctx, { x: x1, y: y1 }, { x: bx1, y: by1 }, elm.volts[0]);
-  drawLead(ctx, { x: bx2, y: by2 }, { x: x2, y: y2 }, elm.volts[1]);
+  drawLead(ctx, x1, y1, bx1, by1, elm.volts[0]);
+  drawLead(ctx, bx2, by2, x2, y2, elm.volts[1]);
 
   const closed = (elm as any).closed;
   ctx.strokeStyle = selected ? '#818cf8' : '#e0e0e8';
@@ -95,8 +95,8 @@ export function drawSwitch(
   ctx.arc(bx2, by2, 3, 0, Math.PI * 2);
   ctx.fill();
 
-  drawPost(ctx, { x: x1, y: y1 }, elm.volts[0], selected);
-  drawPost(ctx, { x: x2, y: y2 }, elm.volts[1], selected);
+  drawPost(ctx, x1, y1, elm.volts[0], selected);
+  drawPost(ctx, x2, y2, elm.volts[1], selected);
   if (closed) {
     drawCurrentDots(ctx, x1, y1, x2, y2, elm.getCurrent(), time, zoom);
   }
@@ -122,8 +122,8 @@ export function drawDiode(
   const bx2 = x2 - nx * leadLen;
   const by2 = y2 - ny * leadLen;
 
-  drawLead(ctx, { x: x1, y: y1 }, { x: bx1, y: by1 }, elm.volts[0]);
-  drawLead(ctx, { x: bx2, y: by2 }, { x: x2, y: y2 }, elm.volts[1]);
+  drawLead(ctx, x1, y1, bx1, by1, elm.volts[0]);
+  drawLead(ctx, bx2, by2, x2, y2, elm.volts[1]);
 
   const perpX = -ny;
   const perpY = nx;
@@ -146,8 +146,8 @@ export function drawDiode(
   ctx.lineTo(bx2 - perpX * (diodeWidth / 2), by2 - perpY * (diodeWidth / 2));
   ctx.stroke();
 
-  drawPost(ctx, { x: x1, y: y1 }, elm.volts[0], selected);
-  drawPost(ctx, { x: x2, y: y2 }, elm.volts[1], selected);
+  drawPost(ctx, x1, y1, elm.volts[0], selected);
+  drawPost(ctx, x2, y2, elm.volts[1], selected);
   drawCurrentDots(ctx, x1, y1, x2, y2, elm.getCurrent(), time, zoom);
 }
 
@@ -211,8 +211,8 @@ export function drawWire(
   ctx.moveTo(elm.x, elm.y);
   ctx.lineTo(elm.x2, elm.y2);
   ctx.stroke();
-  drawPost(ctx, { x: elm.x, y: elm.y }, v, selected);
-  drawPost(ctx, { x: elm.x2, y: elm.y2 }, v, selected);
+  drawPost(ctx, elm.x, elm.y, v, selected);
+  drawPost(ctx, elm.x2, elm.y2, v, selected);
   drawCurrentDots(ctx, elm.x, elm.y, elm.x2, elm.y2, elm.getCurrent(), time, zoom);
 }
 
@@ -238,8 +238,8 @@ export function drawResistor(
   const by2 = y2 - ny * leadLen;
 
   // Draw leads
-  drawLead(ctx, { x: x1, y: y1 }, { x: bx1, y: by1 }, elm.volts[0]);
-  drawLead(ctx, { x: bx2, y: by2 }, { x: x2, y: y2 }, elm.volts[1]);
+  drawLead(ctx, x1, y1, bx1, by1, elm.volts[0]);
+  drawLead(ctx, bx2, by2, x2, y2, elm.volts[1]);
 
   // Draw zigzag body
   const segments = 6;
@@ -267,8 +267,8 @@ export function drawResistor(
   ctx.stroke();
 
   // Posts
-  drawPost(ctx, { x: x1, y: y1 }, elm.volts[0], selected);
-  drawPost(ctx, { x: x2, y: y2 }, elm.volts[1], selected);
+  drawPost(ctx, x1, y1, elm.volts[0], selected);
+  drawPost(ctx, x2, y2, elm.volts[1], selected);
 
   // Current dots
   drawCurrentDots(ctx, x1, y1, x2, y2, elm.getCurrent(), time, zoom);
@@ -296,8 +296,8 @@ export function drawVoltageSource(
   const lx2 = x2 - nx * leadLen;
   const ly2 = y2 - ny * leadLen;
 
-  drawLead(ctx, { x: x1, y: y1 }, { x: lx1, y: ly1 }, elm.volts[0]);
-  drawLead(ctx, { x: lx2, y: ly2 }, { x: x2, y: y2 }, elm.volts[1]);
+  drawLead(ctx, x1, y1, lx1, ly1, elm.volts[0]);
+  drawLead(ctx, lx2, ly2, x2, y2, elm.volts[1]);
 
   // Circle
   ctx.strokeStyle = selected ? '#818cf8' : '#e0e0e8';
@@ -333,8 +333,8 @@ export function drawVoltageSource(
   ctx.stroke();
 
   // Posts
-  drawPost(ctx, { x: x1, y: y1 }, elm.volts[0], selected);
-  drawPost(ctx, { x: x2, y: y2 }, elm.volts[1], selected);
+  drawPost(ctx, x1, y1, elm.volts[0], selected);
+  drawPost(ctx, x2, y2, elm.volts[1], selected);
 
   // Current dots
   drawCurrentDots(ctx, x1, y1, x2, y2, elm.getCurrent(), time, zoom);
@@ -347,7 +347,7 @@ export function drawGround(
   const size = 12;
 
   // Vertical lead downward
-  drawLead(ctx, { x: x, y: y }, { x: x, y: y + size }, 0);
+  drawLead(ctx, x, y, x, y + size, 0);
 
   // Three horizontal lines (getting smaller)
   ctx.strokeStyle = selected ? '#818cf8' : '#888';
@@ -362,7 +362,7 @@ export function drawGround(
     ctx.stroke();
   }
 
-  drawPost(ctx, { x: x, y: y }, 0, selected);
+  drawPost(ctx, x, y, 0, selected);
 }
 
 export function drawCapacitor(
@@ -386,8 +386,8 @@ export function drawCapacitor(
   const bx2 = x2 - nx * leadLen;
   const by2 = y2 - ny * leadLen;
 
-  drawLead(ctx, { x: x1, y: y1 }, { x: bx1, y: by1 }, elm.volts[0]);
-  drawLead(ctx, { x: bx2, y: by2 }, { x: x2, y: y2 }, elm.volts[1]);
+  drawLead(ctx, x1, y1, bx1, by1, elm.volts[0]);
+  drawLead(ctx, bx2, by2, x2, y2, elm.volts[1]);
 
   const perpX = -ny;
   const perpY = nx;
@@ -406,8 +406,8 @@ export function drawCapacitor(
   ctx.lineTo(bx2 + perpX * plateSize, by2 + perpY * plateSize);
   ctx.stroke();
 
-  drawPost(ctx, { x: x1, y: y1 }, elm.volts[0], selected);
-  drawPost(ctx, { x: x2, y: y2 }, elm.volts[1], selected);
+  drawPost(ctx, x1, y1, elm.volts[0], selected);
+  drawPost(ctx, x2, y2, elm.volts[1], selected);
   drawCurrentDots(ctx, x1, y1, x2, y2, elm.getCurrent(), time, zoom);
 }
 
@@ -430,8 +430,8 @@ export function drawInductor(
   const bx2 = x2 - nx * leadLen;
   const by2 = y2 - ny * leadLen;
 
-  drawLead(ctx, { x: x1, y: y1 }, { x: bx1, y: by1 }, elm.volts[0]);
-  drawLead(ctx, { x: bx2, y: by2 }, { x: x2, y: y2 }, elm.volts[1]);
+  drawLead(ctx, x1, y1, bx1, by1, elm.volts[0]);
+  drawLead(ctx, bx2, by2, x2, y2, elm.volts[1]);
 
   const coils = 4;
   const coilLen = bodyLen / coils;
@@ -462,8 +462,8 @@ export function drawInductor(
   }
   ctx.stroke();
 
-  drawPost(ctx, { x: x1, y: y1 }, elm.volts[0], selected);
-  drawPost(ctx, { x: x2, y: y2 }, elm.volts[1], selected);
+  drawPost(ctx, x1, y1, elm.volts[0], selected);
+  drawPost(ctx, x2, y2, elm.volts[1], selected);
   drawCurrentDots(ctx, x1, y1, x2, y2, elm.getCurrent(), time, zoom);
 }
 
@@ -487,9 +487,9 @@ export function drawElement(
     case 'led': drawLED(ctx, elm, selected, time, zoom); break;
     default:
       // Fallback: draw as a line
-      drawLead(ctx, { x: elm.x, y: elm.y }, { x: elm.x2, y: elm.y2 }, elm.volts[0] || 0);
-      drawPost(ctx, { x: elm.x, y: elm.y }, elm.volts[0] || 0, selected);
-      drawPost(ctx, { x: elm.x2, y: elm.y2 }, elm.volts[1] || 0, selected);
+      drawLead(ctx, elm.x, elm.y, elm.x2, elm.y2, elm.volts[0] || 0);
+      drawPost(ctx, elm.x, elm.y, elm.volts[0] || 0, selected);
+      drawPost(ctx, elm.x2, elm.y2, elm.volts[1] || 0, selected);
   }
 }
 
