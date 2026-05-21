@@ -28,7 +28,6 @@ interface WireTreeNode {
 }
 
 interface WireNodeData {
-  inNode: number;
   wires: { wire: WireElement; isForward: boolean; isChord?: boolean }[];
   nonWireContributors: { element: ICircuitElement; post: number }[];
 }
