@@ -19,6 +19,7 @@ interface PropertiesPanelInnerProps {
   probedItems: ProbedItem[];
   setProbedItems: (items: ProbedItem[]) => void;
   onClose: () => void;
+  showHeader?: boolean;
 }
 
 function PropertiesPanelInner({
@@ -27,6 +28,7 @@ function PropertiesPanelInner({
   probedItems,
   setProbedItems,
   onClose,
+  showHeader = true,
 }: PropertiesPanelInnerProps) {
   const [resistanceStr, setResistanceStr] = useState(() =>
     selectedElm.type === 'resistor' ? (selectedElm as ResistorElement).resistance.toString() : ''
@@ -129,19 +131,21 @@ function PropertiesPanelInner({
   return (
     <div className="flex flex-col h-full bg-surface text-text-primary border-l border-border-hairline select-none">
       {/* Header */}
-      <div className="p-4 border-b border-border-hairline flex items-center justify-between bg-surface-dim">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-primary shadow-[0_0_8px_rgba(99,102,241,0.8)]"></div>
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-primary">Properties</span>
+      {showHeader && (
+        <div className="p-4 border-b border-border-hairline flex items-center justify-between bg-surface-dim">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-primary shadow-[0_0_8px_rgba(99,102,241,0.8)]"></div>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-primary">Properties</span>
+          </div>
+          <button
+            className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
+            onClick={onClose}
+            aria-label="Close properties"
+          >
+            <X size={14} />
+          </button>
         </div>
-        <button
-          className="text-text-muted hover:text-text-primary transition-colors focus:outline-none cursor-pointer"
-          onClick={onClose}
-          aria-label="Close properties"
-        >
-          <X size={14} />
-        </button>
-      </div>
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth">
@@ -401,7 +405,7 @@ function PropertiesPanelInner({
   );
 }
 
-export function PropertiesPanel() {
+export function PropertiesPanel({ showHeader }: { showHeader?: boolean }) {
   const selectedId = useUIStore((s) => s.selectedId);
   const setSelectedId = useUIStore((s) => s.setSelectedId);
   const circuit = useCircuitStore((s) => s.circuit);
@@ -429,6 +433,7 @@ export function PropertiesPanel() {
       probedItems={probedItems}
       setProbedItems={setProbedItems}
       onClose={() => setSelectedId(null)}
+      showHeader={showHeader}
     />
   );
 }

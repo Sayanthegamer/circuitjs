@@ -1,66 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Minus,
-  Activity,
-  Battery,
-  ArrowDownToLine,
-  Zap,
   Box,
   Search,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
-import { useUIStore, type ToolMode } from '../stores/uiStore';
-
-const CATEGORIES: {
-  id: string;
-  name: string;
-  isOpen: boolean;
-  items: {
-    mode: ToolMode;
-    label: string;
-    icon: React.ReactNode;
-    desc: string;
-  }[];
-}[] = [
-  {
-    id: 'basic',
-    name: 'Basic Components',
-    isOpen: true,
-    items: [
-      { mode: 'wire', label: 'Wire', icon: <Minus size={16} />, desc: 'Ideal conductor' },
-      { mode: 'resistor', label: 'Resistor', icon: <Activity size={16} />, desc: 'Limits current flow' },
-      { mode: 'switch', label: 'Switch', icon: <Minus size={16} className="skew-x-12" />, desc: 'SPST switch' },
-      { mode: 'ground', label: 'Ground', icon: <ArrowDownToLine size={16} />, desc: '0V reference node' },
-    ]
-  },
-  {
-    id: 'sources',
-    name: 'Sources',
-    isOpen: true,
-    items: [
-      { mode: 'voltage', label: 'DC Voltage', icon: <Battery size={16} />, desc: 'Constant voltage source' },
-    ]
-  },
-  {
-    id: 'passive',
-    name: 'Passive Components',
-    isOpen: true,
-    items: [
-      { mode: 'capacitor', label: 'Capacitor', icon: <Minus size={16} className="rotate-90" />, desc: 'Stores charge' },
-      { mode: 'inductor', label: 'Inductor', icon: <Activity size={16} />, desc: 'Stores flux' },
-    ]
-  },
-  {
-    id: 'semiconductors',
-    name: 'Semiconductors',
-    isOpen: true,
-    items: [
-      { mode: 'diode', label: 'Diode', icon: <ChevronRight size={16} />, desc: 'One-way current' },
-      { mode: 'led', label: 'LED', icon: <Zap size={16} />, desc: 'Light-emitting diode' },
-    ]
-  }
-];
+import { useUIStore } from '../stores/uiStore';
+import { CATEGORIES } from './componentCategories';
 
 export const ComponentPalette: React.FC = () => {
   const tool = useUIStore((s) => s.tool);

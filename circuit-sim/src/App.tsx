@@ -113,6 +113,13 @@ function App() {
   const handlers = useCanvasInteraction(canvasRef);
   useKeyboardShortcuts();
 
+  // Close mobile menu when switching to desktop viewport
+  useEffect(() => {
+    if (isDesktop) {
+      useUIStore.getState().setMobileMenuOpen(false);
+    }
+  }, [isDesktop]);
+
   const canvasContainer = (
     <div
       className={
@@ -170,6 +177,8 @@ function App() {
           </main>
         ) : (
           <main className="flex-1 overflow-y-auto bg-surface-dim relative scroll-smooth no-scrollbar">
+            {/* Mobile whitepaper table of contents */}
+            {!isDesktop && <SideNavBar />}
             {/* Whitepaper content with canvas embedding */}
             <WhitepaperContent canvasContainer={canvasContainer} />
           </main>
@@ -189,7 +198,7 @@ function App() {
 
       {/* Quick hint instructions for placing/deleting (rendered globally above plotter) */}
       {tool !== 'select' && (
-        <div className={`fixed ${plotterMinimized ? 'bottom-[60px]' : 'bottom-[260px]'} left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-surface border border-border-hairline text-xs font-mono text-text-primary shadow-xl transition-all hidden sm:block`}>
+        <div className={`fixed ${plotterMinimized ? 'bottom-[60px]' : 'bottom-[180px] md:bottom-[260px]'} left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-surface border border-border-hairline text-xs font-mono text-text-primary shadow-xl transition-all`}>
           {tool === 'ground'
             ? 'Click canvas to place ground reference node'
             : `Click and drag on canvas to place ${tool}`
