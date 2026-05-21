@@ -493,19 +493,3 @@ export function drawElement(
   }
 }
 
-/** Draw a ghost preview of an element being placed */
-export function drawGhost(
-  ctx: CanvasRenderingContext2D,
-  type: string,
-  x1: number, y1: number,
-  x2: number, y2: number,
-): void {
-  ctx.globalAlpha = 0.4;
-  const mockElm = {
-    type, x: x1, y: y1, x2, y2,
-    volts: [0, 0], nodes: [0, 0],
-    getCurrent: () => 0,
-  } as unknown as ICircuitElement;
-  drawElement(ctx, mockElm, false, 0, 1);
-  ctx.globalAlpha = 1;
-}
