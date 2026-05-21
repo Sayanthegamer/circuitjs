@@ -143,7 +143,7 @@ function App() {
       {/* Top Toolbar */}
       <Toolbar />
 
-      <div className="flex flex-1 overflow-hidden pt-[46px]">
+      <div className="flex flex-1 overflow-hidden pt-[46px] pb-[40px]">
         {/* Left Sidebar (Documentation Navigation & Component Palette) */}
         <aside className="w-[280px] flex-shrink-0 border-r border-border-hairline bg-surface flex flex-col h-full overflow-hidden">
           {viewMode === 'whitepaper' && <SideNavBar />}
