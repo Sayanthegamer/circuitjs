@@ -116,20 +116,20 @@ export const MobileToolbar: React.FC = () => {
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
 
-          {/* Quick Tool Buttons (visible on larger mobile) */}
-          <div className="hidden sm:flex items-center gap-0.5 bg-surface-dim border border-border-hairline p-0.5">
+          {/* Quick Tool Buttons (scrollable on small screens) */}
+          <div className="flex items-center gap-0.5 bg-surface-dim border border-border-hairline p-0.5 overflow-x-auto flex-nowrap">
             {quickTools.map(({ mode, label }) => (
               <button
                 key={mode}
                 onClick={() => handleSelectTool(mode)}
-                className={`w-8 h-8 flex items-center justify-center transition-all focus:outline-none rounded-none ${
+                className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center transition-all focus:outline-none rounded-none ${
                   tool === mode
                     ? 'bg-surface-bright text-primary'
                     : 'text-text-secondary hover:bg-surface-bright/50'
                 }`}
                 title={mode.charAt(0).toUpperCase() + mode.slice(1)}
               >
-                <span className="text-[11px] font-bold font-mono">{label}</span>
+                <span className="text-[10px] sm:text-[11px] font-bold font-mono">{label}</span>
               </button>
             ))}
           </div>

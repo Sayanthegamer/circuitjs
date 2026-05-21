@@ -36,7 +36,7 @@ export const MobilePropertiesPanel: React.FC = () => {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto no-scrollbar">
-          <PropertiesPanel />
+          <PropertiesPanel showHeader={false} />
         </div>
 
         {/* Footer hint when nothing selected */}

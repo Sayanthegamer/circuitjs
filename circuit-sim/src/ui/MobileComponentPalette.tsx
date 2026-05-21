@@ -10,58 +10,10 @@ import {
   ChevronDown,
   ChevronRight,
   X,
+  MousePointer2,
 } from 'lucide-react';
 import { useUIStore, type ToolMode } from '../stores/uiStore';
-
-const CATEGORIES: {
-  id: string;
-  name: string;
-  isOpen: boolean;
-  items: {
-    mode: ToolMode;
-    label: string;
-    icon: React.ReactNode;
-    desc: string;
-  }[];
-}[] = [
-  {
-    id: 'basic',
-    name: 'Basic Components',
-    isOpen: true,
-    items: [
-      { mode: 'wire', label: 'Wire', icon: <Minus size={16} />, desc: 'Ideal conductor' },
-      { mode: 'resistor', label: 'Resistor', icon: <Activity size={16} />, desc: 'Limits current flow' },
-      { mode: 'switch', label: 'Switch', icon: <Minus size={16} className="skew-x-12" />, desc: 'SPST switch' },
-      { mode: 'ground', label: 'Ground', icon: <ArrowDownToLine size={16} />, desc: '0V reference node' },
-    ]
-  },
-  {
-    id: 'sources',
-    name: 'Sources',
-    isOpen: true,
-    items: [
-      { mode: 'voltage', label: 'DC Voltage', icon: <Battery size={16} />, desc: 'Constant voltage source' },
-    ]
-  },
-  {
-    id: 'passive',
-    name: 'Passive Components',
-    isOpen: true,
-    items: [
-      { mode: 'capacitor', label: 'Capacitor', icon: <Minus size={16} className="rotate-90" />, desc: 'Stores charge' },
-      { mode: 'inductor', label: 'Inductor', icon: <Activity size={16} />, desc: 'Stores flux' },
-    ]
-  },
-  {
-    id: 'semiconductors',
-    name: 'Semiconductors',
-    isOpen: true,
-    items: [
-      { mode: 'diode', label: 'Diode', icon: <ChevronRight size={16} />, desc: 'One-way current' },
-      { mode: 'led', label: 'LED', icon: <Zap size={16} />, desc: 'Light-emitting diode' },
-    ]
-  }
-];
+import { CATEGORIES } from './componentCategories';
 
 export const MobileComponentPalette: React.FC = () => {
   const mobilePaletteOpen = useUIStore((s) => s.mobilePaletteOpen);
@@ -137,6 +89,23 @@ export const MobileComponentPalette: React.FC = () => {
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-3">
+          {/* Select Tool — always visible at the top */}
+          <div className="grid grid-cols-4 gap-2">
+            <button
+              onClick={() => handleSelect('select')}
+              className={`flex flex-col items-center justify-center aspect-square bg-surface-dim border p-2 transition-all text-center rounded-none focus:outline-none active:scale-95 ${
+                tool === 'select'
+                  ? 'border-primary bg-surface-bright text-primary font-bold shadow-[0_0_12px_rgba(99,102,241,0.15)]'
+                  : 'border-border-hairline text-text-secondary hover:border-text-secondary/50 hover:bg-surface-bright/50 hover:text-text-primary'
+              }`}
+            >
+              <div className="mb-1.5">
+                <MousePointer2 size={16} />
+              </div>
+              <span className="text-[9px] font-mono tracking-wider uppercase font-bold">Select</span>
+            </button>
+          </div>
+
           {filteredCategories.map(cat => (
             <div key={cat.id} className="space-y-2">
               <button
