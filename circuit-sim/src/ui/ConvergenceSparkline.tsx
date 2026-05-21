@@ -52,9 +52,13 @@ const ConvergenceSparkline: React.FC<ConvergenceSparklineProps> = ({
           style={{ top: '80%' }}
         ></div>
 
-        {isLinear ? (
+        {errors.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="font-mono text-[9px] text-text-muted tracking-tighter uppercase">Status: Linear_Solve_Only</span>
+            <span className="font-mono text-[9px] text-text-muted tracking-tighter uppercase">Status: Linear_Circuit</span>
+          </div>
+        ) : errors.length === 1 ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="font-mono text-[9px] text-instrument-current/70 tracking-tighter uppercase">Status: Converged_Instantly (Steady State)</span>
           </div>
         ) : (
           <svg className="absolute inset-0 w-full h-full">
