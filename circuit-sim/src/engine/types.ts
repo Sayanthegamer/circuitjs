@@ -149,21 +149,6 @@ export interface IStamper {
   subIterations: number;
 }
 
-// ============================================================
-// Worker Message Protocol
-// ============================================================
-
-export type WorkerRequest =
-  | { type: 'init'; circuit: SerializedCircuit }
-  | { type: 'start' }
-  | { type: 'stop' }
-  | { type: 'reset' }
-  | { type: 'setSpeed'; speed: number }
-  | { type: 'addElement'; element: SerializedElement }
-  | { type: 'removeElement'; id: ElementId }
-  | { type: 'updateElement'; id: ElementId; props: Record<string, unknown> }
-  | { type: 'tick' };
-
 export interface SimulationState {
   t: number;
   timeStep: number;
