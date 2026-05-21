@@ -369,9 +369,7 @@ function App() {
          const delta = dist - lastPinchDist.current;
          if (Math.abs(delta) > 0.5) { // small threshold
              // call handleTouchZoom
-             if (typeof (cameraRef.current as any).handleTouchZoom === 'function') {
-                 (cameraRef.current as any).handleTouchZoom(delta, midX, midY);
-             }
+             cameraRef.current.handleTouchZoom(delta, midX, midY);
          }
       }
 
