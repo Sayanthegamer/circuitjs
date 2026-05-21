@@ -7,9 +7,12 @@ import {
   GroundElement,
 } from './engine';
 import { Toolbar } from './ui/Toolbar';
+import { MobileToolbar } from './ui/MobileToolbar';
 import { PropertiesPanel } from './ui/PropertiesPanel';
+import { MobilePropertiesPanel } from './ui/MobilePropertiesPanel';
 import { Plotter } from './ui/Plotter';
 import { ComponentPalette } from './ui/ComponentPalette';
+import { MobileComponentPalette } from './ui/MobileComponentPalette';
 import { SideNavBar } from './ui/SideNavBar';
 import { CanvasOverlayHUD } from './ui/CanvasOverlayHUD';
 import NodeHUD from './ui/NodeHUD';
@@ -19,11 +22,15 @@ import { useCanvasInteraction } from './hooks/useCanvasInteraction';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useCircuitStore } from './stores/circuitStore';
 import { useUIStore } from './stores/uiStore';
+import { useBreakpoint } from './hooks/useBreakpoint';
 import './ui.css';
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Breakpoint detection
+  const { isDesktop } = useBreakpoint();
 
   // Zustand Store values
   const viewMode = useUIStore((s) => s.viewMode);
@@ -141,12 +148,12 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-surface-dim text-text-primary overflow-hidden font-sans">
-      {/* Top Toolbar */}
-      <Toolbar />
+      {/* Top Toolbar - Desktop vs Mobile */}
+      {isDesktop ? <Toolbar /> : <MobileToolbar />}
 
-      <div className="flex flex-1 overflow-hidden pt-[46px] pb-[40px]">
-        {/* Left Sidebar (Documentation Navigation & Component Palette) */}
-        <aside className="w-[280px] flex-shrink-0 border-r border-border-hairline bg-surface flex flex-col h-full overflow-hidden">
+      <div className="flex flex-1 overflow-hidden pt-12 lg:pt-[46px] pb-[40px]">
+        {/* Left Sidebar (Documentation Navigation & Component Palette) - Desktop only */}
+        <aside className="hidden lg:flex w-[280px] flex-shrink-0 border-r border-border-hairline bg-surface flex flex-col h-full overflow-hidden">
           {viewMode === 'whitepaper' && <SideNavBar />}
           <div className={`flex-1 overflow-y-auto ${viewMode === 'whitepaper' ? 'border-t border-border-hairline' : ''}`}>
             <div className="px-4 py-2.5 text-[9px] uppercase tracking-[0.2em] text-text-muted font-bold font-mono">
@@ -168,15 +175,21 @@ function App() {
           </main>
         )}
 
-        {/* Right Sidebar: Properties Panel */}
-        <aside className="w-[320px] flex-shrink-0 border-l border-border-hairline bg-surface flex flex-col h-full overflow-y-auto no-scrollbar">
+        {/* Right Sidebar (Properties Panel) - Desktop only */}
+        <aside className="hidden lg:flex w-[320px] flex-shrink-0 border-l border-border-hairline bg-surface flex flex-col h-full overflow-y-auto no-scrollbar">
           <PropertiesPanel />
         </aside>
       </div>
 
+      {/* Mobile Bottom Component Palette Sheet */}
+      {!isDesktop && <MobileComponentPalette />}
+
+      {/* Mobile Properties Panel */}
+      {!isDesktop && <MobilePropertiesPanel />}
+
       {/* Quick hint instructions for placing/deleting (rendered globally above plotter) */}
       {tool !== 'select' && (
-        <div className={`fixed ${plotterMinimized ? 'bottom-[60px]' : 'bottom-[260px]'} left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-surface border border-border-hairline text-xs font-mono text-text-primary shadow-xl transition-all`}>
+        <div className={`fixed ${plotterMinimized ? 'bottom-[60px]' : 'bottom-[260px]'} left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-surface border border-border-hairline text-xs font-mono text-text-primary shadow-xl transition-all hidden sm:block`}>
           {tool === 'ground'
             ? 'Click canvas to place ground reference node'
             : `Click and drag on canvas to place ${tool}`
