@@ -855,17 +855,7 @@ function App() {
       </div>
 
       {/* Bottom Panel: Oscilloscope View */}
-      <footer className={`border-t border-border-hairline bg-surface-dim z-40 relative flex-shrink-0 transition-all ${plotterMinimized ? 'h-[40px]' : 'h-[220px]'}`}>
-        <Plotter 
-          ref={plotterRef} 
-          items={probedItems} 
-          onRemoveItem={(id) => setProbedItems(prev => prev.filter(i => i.id !== id))}
-          onColorChange={(id, color) => setProbedItems(prev => prev.map(i => i.id === id ? { ...i, color } : i))}
-          simTime={simTime}
-          isMinimized={plotterMinimized}
-          onToggleMinimize={() => setPlotterMinimized(!plotterMinimized)}
-        />
-      </footer>
+      <Plotter ref={plotterRef} items={probedItems} />
     </div>
   );
 }
