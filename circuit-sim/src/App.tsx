@@ -4,7 +4,7 @@ import { Circuit, ResistorElement, VoltageSourceElement, WireElement, GroundElem
 import type { ICircuitElement } from './engine/types';
 import { Camera } from './renderer/camera';
 import { drawGrid, GRID_SIZE } from './renderer/grid';
-import { drawElement, drawGhost } from './renderer/element-renderers';
+import { drawElement } from './renderer/element-renderers';
 import { Toolbar } from './ui/Toolbar';
 import { PropertiesPanel } from './ui/PropertiesPanel';
 import { Plotter, type ProbedItem, type PlotterHandle } from './ui/Plotter';
