@@ -78,7 +78,7 @@ function App() {
     // Build a demo circuit: 5V → R1(1kΩ) → R2(1kΩ) → GND
     const circuit = circuitRef.current;
     // Clear previous elements (handles React StrictMode double-mount)
-    circuit.elements = [];
+    circuit.clearElements();
     circuit.stopMessage = null;
 
     const vs  = new VoltageSourceElement(0, 160, 0, 0, 5);
