@@ -27,7 +27,7 @@ interface WireInfo {
  */
 export class Circuit implements IStamper {
   elements: ICircuitElement[] = [];
-  elementsMap: Map<string, ICircuitElement> = new Map();
+  elementMap: Map<string, ICircuitElement> = new Map();
   nodeList: CircuitNode[] = [];
   voltageSources: ICircuitElement[] = [];
   voltageSourceCount = 0;
@@ -164,12 +164,17 @@ export class Circuit implements IStamper {
 
   addElement(elm: ICircuitElement): void {
     this.elements.push(elm);
-    this.elementsMap.set(elm.id, elm);
+    this.elementMap.set(elm.id, elm);
   }
 
   removeElement(id: string): void {
     this.elements = this.elements.filter(e => e.id !== id);
-    this.elementsMap.delete(id);
+    this.elementMap.delete(id);
+  }
+
+  clearElements(): void {
+    this.elements = [];
+    this.elementMap.clear();
   }
 
   /**
@@ -717,7 +722,7 @@ export class Circuit implements IStamper {
       const cn = this.nodeList[j + 1];
       if (!cn) continue;
       for (const link of cn.links) {
-        const elm = this.elementsMap.get(link.elmId);
+        const elm = this.elementMap.get(link.elmId);
         if (elm) elm.setNodeVoltage(link.num, this.nodeVoltages[j]);
       }
     }
@@ -774,7 +779,7 @@ export class Circuit implements IStamper {
 
   /** Get the element by ID */
   getElement(id: string): ICircuitElement | undefined {
-    return this.elementsMap.get(id);
+    return this.elementMap.get(id);
   }
 
   /** Build a snapshot of simulation state for the UI */
