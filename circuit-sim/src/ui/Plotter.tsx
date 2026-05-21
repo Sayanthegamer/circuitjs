@@ -189,7 +189,21 @@ export const Plotter = forwardRef<PlotterHandle, PlotterProps>(({
 
   useEffect(() => {
     draw();
-  }, [items, draw, channelConfigs, isMinimized, activeTab]);
+  }, [items, draw, channelConfigs]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const observer = new ResizeObserver(() => {
+      draw();
+    });
+    observer.observe(canvas);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [draw, isMinimized, activeTab]);
 
   const updateChannelConfig = (id: string, updates: Partial<ChannelState>) => {
     setChannelConfigs(prev => {
