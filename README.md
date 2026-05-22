@@ -1,5 +1,3 @@
----
-
 # ⚡ CircuitJS
 
 **An interactive, visual, and easy-to-use electronic circuit simulator right in your browser!**
