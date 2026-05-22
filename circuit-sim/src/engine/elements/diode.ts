@@ -95,7 +95,8 @@ export class DiodeElement extends CircuitElement {
   calculateCurrent(): void {
     const voltdiff = this.volts[0] - this.volts[1];
     let vclamp = voltdiff;
-    const maxVf = 45 * this.vt;
+    // FIX: Match the expanded LED ceiling parameter used in doStep
+    const maxVf = 150 * this.vt;
     if (vclamp > maxVf) vclamp = maxVf;
     if (vclamp < -15) vclamp = -15;
     this.current = this.leakage * (Math.exp(vclamp / this.vt) - 1);
