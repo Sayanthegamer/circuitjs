@@ -53,8 +53,14 @@ export class DiodeElement extends CircuitElement {
     // 1. Back-calculate the internal junction voltage from the external voltage
     // V_junction = (V_total - Rs * Ieq) / (1 + Geq * Rs)
     let v_junction_raw = voltdiff;
-    if (this.rs > 0 && this.lastGeq > 0) {
-      v_junction_raw = (voltdiff - this.rs * this.lastIeq) / (1 + this.lastGeq * this.rs);
+    const safeRs = isFinite(this.rs) && this.rs >= 0 ? this.rs : 0;
+    if (safeRs > 0 && this.lastGeq > 0) {
+      const EPS = 1e-12;
+      let denom = 1 + this.lastGeq * safeRs;
+      if (Math.abs(denom) < EPS) {
+        denom = Math.sign(denom || 1) * EPS;
+      }
+      v_junction_raw = (voltdiff - safeRs * this.lastIeq) / denom;
     }
 
     if (isNaN(v_junction_raw) || !isFinite(v_junction_raw)) {
@@ -81,13 +87,6 @@ export class DiodeElement extends CircuitElement {
     const expTerm = Math.exp(this.vdio / this.vt);
     let geq_ideal = (this.leakage / this.vt) * expTerm;
 
-    let gmin = this.leakage * 0.01;
-    if (stamper.subIterations > 100) {
-        gmin = Math.exp(-9 * Math.log(10) * (1 - stamper.subIterations / 3000.));
-        if (gmin > .1) gmin = .1;
-    }
-    geq_ideal += gmin;
-
     if (geq_ideal < 1e-12) geq_ideal = 1e-12;
 
     const current_ideal = this.leakage * (expTerm - 1);
@@ -97,16 +96,28 @@ export class DiodeElement extends CircuitElement {
     this.lastGeq = geq_ideal;
     this.lastIeq = ieq_ideal;
 
+    // Compute gmin for solver stability, but don't contaminate the saved state
+    let gmin = this.leakage * 0.01;
+    if (stamper.subIterations > 100) {
+        gmin = Math.exp(-9 * Math.log(10) * (1 - stamper.subIterations / 3000.));
+        if (gmin > .1) gmin = .1;
+    }
+    const geq_for_solver = geq_ideal + gmin;
+
     // 4. Apply Norton Transformation to account for Rs without adding matrix nodes
     // G'_eq = G_eq / (1 + G_eq * Rs)
     // I'_eq = I_eq / (1 + G_eq * Rs)
-    let geq_norton = geq_ideal;
+    let geq_norton = geq_for_solver;
     let ieq_norton = ieq_ideal;
 
-    if (this.rs > 0) {
-      const denominator = 1 + geq_ideal * this.rs;
-      geq_norton = geq_ideal / denominator;
-      ieq_norton = ieq_ideal / denominator;
+    if (safeRs > 0) {
+      const EPS = 1e-12;
+      let denom = 1 + geq_for_solver * safeRs;
+      if (Math.abs(denom) < EPS) {
+        denom = Math.sign(denom || 1) * EPS;
+      }
+      geq_norton = geq_for_solver / denom;
+      ieq_norton = ieq_ideal / denom;
     }
 
     // 5. Stamp the final equivalent model to the external nodes
@@ -116,11 +127,17 @@ export class DiodeElement extends CircuitElement {
 
   calculateCurrent(): void {
     const voltdiff = this.volts[0] - this.volts[1];
-    
+
     // Back-calculate the converged internal junction voltage
     let v_junction = voltdiff;
-    if (this.rs > 0 && this.lastGeq > 0) {
-      v_junction = (voltdiff - this.rs * this.lastIeq) / (1 + this.lastGeq * this.rs);
+    const safeRs = isFinite(this.rs) && this.rs >= 0 ? this.rs : 0;
+    if (safeRs > 0 && this.lastGeq > 0) {
+      const EPS = 1e-12;
+      let denom = 1 + this.lastGeq * safeRs;
+      if (Math.abs(denom) < EPS) {
+        denom = Math.sign(denom || 1) * EPS;
+      }
+      v_junction = (voltdiff - safeRs * this.lastIeq) / denom;
     }
 
     // Safety clamp (should rarely hit this if converged)
