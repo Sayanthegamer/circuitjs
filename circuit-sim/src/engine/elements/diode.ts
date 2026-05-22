@@ -9,6 +9,9 @@ export class DiodeElement extends CircuitElement {
   vt = 0.02585;    // Thermal voltage
   vdio = 0;        // Current guessed voltage across diode
   lastvoltdiff = 0;
+  rs = 0.1;        // Parasitic series resistance (ohms)
+  lastGeq = 0;     // Last ideal conductance
+  lastIeq = 0;     // Last ideal current source
 
   constructor(x: number, y: number, x2: number, y2: number) {
     super(x, y, x2, y2);
@@ -45,18 +48,34 @@ export class DiodeElement extends CircuitElement {
   }
 
   doStep(stamper: IStamper): void {
-    let voltdiff = this.volts[0] - this.volts[1];
+    const voltdiff = this.volts[0] - this.volts[1];
 
-    if (isNaN(voltdiff) || !isFinite(voltdiff)) {
-      voltdiff = this.lastvoltdiff;
+    // 1. Back-calculate the internal junction voltage from the external voltage
+    // V_junction = (V_total - Rs * Ieq) / (1 + Geq * Rs)
+    let v_junction_raw = voltdiff;
+    const safeRs = isFinite(this.rs) && this.rs >= 0 ? this.rs : 0;
+    if (safeRs > 0 && this.lastGeq > 0) {
+      const EPS = 1e-12;
+      let denom = 1 + this.lastGeq * safeRs;
+      if (Math.abs(denom) < EPS) {
+        denom = Math.sign(denom || 1) * EPS;
+      }
+      v_junction_raw = (voltdiff - safeRs * this.lastIeq) / denom;
     }
 
-    if (Math.abs(voltdiff - this.lastvoltdiff) > 0.001) {
+    if (isNaN(v_junction_raw) || !isFinite(v_junction_raw)) {
+      v_junction_raw = this.lastvoltdiff;
+    }
+
+    // Check convergence based on the internal junction voltage
+    if (Math.abs(v_junction_raw - this.lastvoltdiff) > 0.001) {
       stamper.converged = false;
     }
 
-    let vnext = this.limitStep(voltdiff, this.lastvoltdiff);
+    // 2. Limit the voltage step
+    let vnext = this.limitStep(v_junction_raw, this.lastvoltdiff);
 
+    // Hard safety clamps for Newton-Raphson first-step stability
     const maxVf = 150 * this.vt;
     if (vnext > maxVf) vnext = maxVf;
     if (vnext < -15) vnext = -15;
@@ -64,62 +83,70 @@ export class DiodeElement extends CircuitElement {
     this.vdio = vnext;
     this.lastvoltdiff = vnext;
 
+    // 3. Calculate ideal Shockley model (Geq_ideal and Ieq_ideal)
     const expTerm = Math.exp(this.vdio / this.vt);
-    let geq = (this.leakage / this.vt) * expTerm;
+    let geq_ideal = (this.leakage / this.vt) * expTerm;
 
+    if (geq_ideal < 1e-12) geq_ideal = 1e-12;
+
+    const current_ideal = this.leakage * (expTerm - 1);
+    const ieq_ideal = current_ideal - geq_ideal * this.vdio;
+
+    // Save ideal state for next iteration's junction reconstruction
+    this.lastGeq = geq_ideal;
+    this.lastIeq = ieq_ideal;
+
+    // Compute gmin for solver stability, but don't contaminate the saved state
     let gmin = this.leakage * 0.01;
-
     if (stamper.subIterations > 100) {
         gmin = Math.exp(-9 * Math.log(10) * (1 - stamper.subIterations / 3000.));
         if (gmin > .1) gmin = .1;
     }
-    geq += gmin;
+    const geq_for_solver = geq_ideal + gmin;
 
-    if (geq < 1e-12) geq = 1e-12;
+    // 4. Apply Norton Transformation to account for Rs without adding matrix nodes
+    // G'_eq = G_eq / (1 + G_eq * Rs)
+    // I'_eq = I_eq / (1 + G_eq * Rs)
+    let geq_norton = geq_for_solver;
+    let ieq_norton = ieq_ideal;
 
-    let current = this.leakage * (expTerm - 1);
-
-    // FIX: Linearize the model once we hit the conductance ceiling
-    // This prevents the equivalent current source (ieq) from diverging.
-    const maxGeq = 1e4;
-    if (geq > maxGeq) {
-        geq = maxGeq;
-        
-        // Calculate the exact voltage where geq naturally hit the 1e4 ceiling
-        const expBound = (maxGeq * this.vt) / this.leakage;
-        const vBound = this.vt * Math.log(expBound);
-        const iBound = this.leakage * (expBound - 1);
-        
-        // Extend the curve linearly past this point
-        current = iBound + maxGeq * (this.vdio - vBound);
+    if (safeRs > 0) {
+      const EPS = 1e-12;
+      let denom = 1 + geq_for_solver * safeRs;
+      if (Math.abs(denom) < EPS) {
+        denom = Math.sign(denom || 1) * EPS;
+      }
+      geq_norton = geq_for_solver / denom;
+      ieq_norton = ieq_ideal / denom;
     }
 
-    const ieq = current - geq * this.vdio;
-
-    stamper.stampConductance(this.nodes[0], this.nodes[1], geq);
-    stamper.stampCurrentSource(this.nodes[0], this.nodes[1], ieq);
+    // 5. Stamp the final equivalent model to the external nodes
+    stamper.stampConductance(this.nodes[0], this.nodes[1], geq_norton);
+    stamper.stampCurrentSource(this.nodes[0], this.nodes[1], ieq_norton);
   }
 
   calculateCurrent(): void {
     const voltdiff = this.volts[0] - this.volts[1];
-    let vclamp = voltdiff;
-    
-    const maxVf = 150 * this.vt;
-    if (vclamp > maxVf) vclamp = maxVf;
-    if (vclamp < -15) vclamp = -15;
-    
-    const expTerm = Math.exp(vclamp / this.vt);
-    let geq = (this.leakage / this.vt) * expTerm;
-    const maxGeq = 1e4;
-    
-    // Maintain identical linearization for telemetry/UI plotting
-    if (geq > maxGeq) {
-        const expBound = (maxGeq * this.vt) / this.leakage;
-        const vBound = this.vt * Math.log(expBound);
-        const iBound = this.leakage * (expBound - 1);
-        this.current = iBound + maxGeq * (vclamp - vBound);
-    } else {
-        this.current = this.leakage * (expTerm - 1);
+
+    // Back-calculate the converged internal junction voltage
+    let v_junction = voltdiff;
+    const safeRs = isFinite(this.rs) && this.rs >= 0 ? this.rs : 0;
+    if (safeRs > 0 && this.lastGeq > 0) {
+      const EPS = 1e-12;
+      let denom = 1 + this.lastGeq * safeRs;
+      if (Math.abs(denom) < EPS) {
+        denom = Math.sign(denom || 1) * EPS;
+      }
+      v_junction = (voltdiff - safeRs * this.lastIeq) / denom;
     }
+
+    // Safety clamp (should rarely hit this if converged)
+    const maxVf = 150 * this.vt;
+    if (v_junction > maxVf) v_junction = maxVf;
+    if (v_junction < -15) v_junction = -15;
+
+    // Calculate true current flowing through the component based on the junction voltage
+    const expTerm = Math.exp(v_junction / this.vt);
+    this.current = this.leakage * (expTerm - 1);
   }
 }
