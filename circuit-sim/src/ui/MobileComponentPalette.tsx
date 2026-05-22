@@ -88,7 +88,7 @@ export const MobileComponentPalette: React.FC = () => {
           <div className="grid grid-cols-4 gap-2">
             <button
               onClick={() => handleSelect('select')}
-              className={`flex flex-col items-center justify-center aspect-square bg-surface-dim border p-2 transition-all text-center rounded-none focus:outline-none active:scale-95 ${
+              className={`flex flex-col items-center justify-center bg-surface-dim border p-2 transition-all text-center rounded-none focus:outline-none active:scale-95 ${
                 tool === 'select'
                   ? 'border-primary bg-surface-bright text-primary font-bold shadow-[0_0_12px_rgba(99,102,241,0.15)]'
                   : 'border-border-hairline text-text-secondary hover:border-text-secondary/50 hover:bg-surface-bright/50 hover:text-text-primary'
@@ -117,7 +117,7 @@ export const MobileComponentPalette: React.FC = () => {
                     <button
                       key={item.label}
                       onClick={() => handleSelect(item.mode)}
-                      className={`flex flex-col items-center justify-center aspect-square bg-surface-dim border p-2 transition-all text-center rounded-none focus:outline-none active:scale-95 ${
+                      className={`flex flex-col items-center justify-center bg-surface-dim border p-2 transition-all text-center rounded-none focus:outline-none active:scale-95 ${
                         tool === item.mode
                           ? 'border-primary bg-surface-bright text-primary font-bold shadow-[0_0_12px_rgba(99,102,241,0.15)]'
                           : 'border-border-hairline text-text-secondary hover:border-text-secondary/50 hover:bg-surface-bright/50 hover:text-text-primary'

@@ -14,7 +14,6 @@ import { Plotter } from './ui/Plotter';
 import { ComponentPalette } from './ui/ComponentPalette';
 import { MobileComponentPalette } from './ui/MobileComponentPalette';
 import { SideNavBar } from './ui/SideNavBar';
-import { CanvasOverlayHUD } from './ui/CanvasOverlayHUD';
 import NodeHUD from './ui/NodeHUD';
 import { WhitepaperContent } from './ui/WhitepaperContent';
 import { useSimulationLoop } from './hooks/useSimulationLoop';
@@ -149,7 +148,6 @@ function App() {
       <NodeHUD />
 
       {/* Canvas Overlay Telemetry HUD */}
-      <CanvasOverlayHUD />
     </div>
   );
 
