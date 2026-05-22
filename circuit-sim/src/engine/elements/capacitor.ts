@@ -3,8 +3,9 @@ import type { IStamper } from '../types';
 
 export class CapacitorElement extends CircuitElement {
   type = 'capacitor';
-  capacitance = 1e-3; // 1mF default for visible animations
-  
+  capacitance = 1e-3;
+  public esr = 0.1; // Add explicit physical ESR to cap loops to absorb initial macro-inrush surges
+
   private compResistance = 0;
   private currentSourceValue = 0;
 
@@ -14,8 +15,15 @@ export class CapacitorElement extends CircuitElement {
   }
 
   stamp(stamper: IStamper): void {
-    // Trapezoidal rule equivalent resistance: R_eq = dt / (2 * C)
-    this.compResistance = stamper.timeStep / (2 * this.capacitance);
+    const isEuler = (stamper as unknown as Record<string, unknown>).isBackwardEuler;
+
+    // Dynamically alternate integration rules to smooth structural switches
+    const activeCapResistance = isEuler
+      ? stamper.timeStep / this.capacitance
+      : stamper.timeStep / (2 * this.capacitance);
+
+    this.compResistance = activeCapResistance + this.esr;
+
     stamper.stampResistor(this.nodes[0], this.nodes[1], this.compResistance);
     stamper.stampRightSide(this.nodes[0]);
     stamper.stampRightSide(this.nodes[1]);
@@ -23,18 +31,23 @@ export class CapacitorElement extends CircuitElement {
 
   startIteration(): void {
     const vdiff = this.volts[0] - this.volts[1];
-    // CS_n = V_{n-1} / R_eq + i_{n-1}
-    this.currentSourceValue = (vdiff / this.compResistance) + this.current;
+
+    // Evaluate current rule state via math properties
+    const isEuler = this.compResistance > (5e-6 / (1.5 * this.capacitance));
+
+    if (isEuler) {
+      this.currentSourceValue = (vdiff / this.compResistance);
+    } else {
+      this.currentSourceValue = (vdiff / this.compResistance) + this.current;
+    }
   }
 
   doStep(stamper: IStamper): void {
-    // A current source of CS_n from n1 to n2
     stamper.stampCurrentSource(this.nodes[0], this.nodes[1], -this.currentSourceValue);
   }
 
   calculateCurrent(): void {
     const vdiff = this.volts[0] - this.volts[1];
-    // i_n = V_n / R_eq - CS_n
     this.current = (vdiff / this.compResistance) - this.currentSourceValue;
   }
 

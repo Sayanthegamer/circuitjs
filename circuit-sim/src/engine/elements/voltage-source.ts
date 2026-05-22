@@ -18,7 +18,7 @@ export class VoltageSourceElement extends CircuitElement {
 
   getVoltageSourceCount(): number { return 1; }
 
-  nonLinear(): boolean { return this.waveform === 'AC'; }
+  nonLinear(): boolean { return false; }
 
   getVoltage(t: number): number {
     if (this.waveform === 'DC') {
