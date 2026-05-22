@@ -47,25 +47,20 @@ export class DiodeElement extends CircuitElement {
   doStep(stamper: IStamper): void {
     let voltdiff = this.volts[0] - this.volts[1];
 
-    // Guard against NaN propagation from a broken matrix state
     if (isNaN(voltdiff) || !isFinite(voltdiff)) {
       voltdiff = this.lastvoltdiff;
     }
 
-    // 1. FIX: Check convergence using the raw target step BEFORE applying limits
     if (Math.abs(voltdiff - this.lastvoltdiff) > 0.001) {
       stamper.converged = false;
     }
 
-    // 2. Calculate the step-limited voltage for this iteration
     let vnext = this.limitStep(voltdiff, this.lastvoltdiff);
 
-    // 3. FIX: Raise maxVf ceiling to 150 * vt (~3.87V) so high forward-voltage LEDs can turn on
     const maxVf = 150 * this.vt;
     if (vnext > maxVf) vnext = maxVf;
     if (vnext < -15) vnext = -15;
 
-    // 4. FIX: Synchronize historical tracking variables with the actual clamped value
     this.vdio = vnext;
     this.lastvoltdiff = vnext;
 
@@ -74,18 +69,31 @@ export class DiodeElement extends CircuitElement {
 
     let gmin = this.leakage * 0.01;
 
-    // Dynamic gmin convergence assistance
     if (stamper.subIterations > 100) {
         gmin = Math.exp(-9 * Math.log(10) * (1 - stamper.subIterations / 3000.));
         if (gmin > .1) gmin = .1;
     }
     geq += gmin;
 
-    // Maintain numeric stability boundaries
     if (geq < 1e-12) geq = 1e-12;
-    if (geq > 1e4)   geq = 1e4; // Hard cap on maximum conductance to protect LU factorization
 
-    const current = this.leakage * (expTerm - 1);
+    let current = this.leakage * (expTerm - 1);
+
+    // FIX: Linearize the model once we hit the conductance ceiling
+    // This prevents the equivalent current source (ieq) from diverging.
+    const maxGeq = 1e4;
+    if (geq > maxGeq) {
+        geq = maxGeq;
+        
+        // Calculate the exact voltage where geq naturally hit the 1e4 ceiling
+        const expBound = (maxGeq * this.vt) / this.leakage;
+        const vBound = this.vt * Math.log(expBound);
+        const iBound = this.leakage * (expBound - 1);
+        
+        // Extend the curve linearly past this point
+        current = iBound + maxGeq * (this.vdio - vBound);
+    }
+
     const ieq = current - geq * this.vdio;
 
     stamper.stampConductance(this.nodes[0], this.nodes[1], geq);
@@ -95,10 +103,23 @@ export class DiodeElement extends CircuitElement {
   calculateCurrent(): void {
     const voltdiff = this.volts[0] - this.volts[1];
     let vclamp = voltdiff;
-    // FIX: Match the expanded LED ceiling parameter used in doStep
+    
     const maxVf = 150 * this.vt;
     if (vclamp > maxVf) vclamp = maxVf;
     if (vclamp < -15) vclamp = -15;
-    this.current = this.leakage * (Math.exp(vclamp / this.vt) - 1);
+    
+    const expTerm = Math.exp(vclamp / this.vt);
+    let geq = (this.leakage / this.vt) * expTerm;
+    const maxGeq = 1e4;
+    
+    // Maintain identical linearization for telemetry/UI plotting
+    if (geq > maxGeq) {
+        const expBound = (maxGeq * this.vt) / this.leakage;
+        const vBound = this.vt * Math.log(expBound);
+        const iBound = this.leakage * (expBound - 1);
+        this.current = iBound + maxGeq * (vclamp - vBound);
+    } else {
+        this.current = this.leakage * (expTerm - 1);
+    }
   }
 }
