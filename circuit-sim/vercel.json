@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/llms.txt",
+      "destination": "/api/serve-llms.js"
+    }
+  ]
+}
