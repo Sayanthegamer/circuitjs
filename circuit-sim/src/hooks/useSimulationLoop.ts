@@ -65,7 +65,7 @@ export function useSimulationLoop(
 
       // Read state non-reactively from stores
       const { circuit, camera, simRunning, probedItems, plotterRef } = useCircuitStore.getState();
-      const { selectedId, placing, showValues } = useUIStore.getState();
+      const { selectedId, placing, showValues, hoveredElm, hoveredNode, draggingElmId } = useUIStore.getState();
 
       // --- Simulate ---
       let steps = 0;
@@ -106,7 +106,11 @@ export function useSimulationLoop(
       // Draw elements
       for (const elm of circuit.elements) {
         const isSelected = elm.id === selectedId;
-        drawElement(ctx, elm, isSelected, animTimeRef.current, camera.zoom);
+
+        const isHovered = hoveredElm?.id === elm.id;
+        const isDragging = draggingElmId === elm.id;
+        drawElement(ctx, elm, isSelected, animTimeRef.current, camera.zoom, isHovered || isDragging ? hoveredNode : undefined);
+
       }
 
       // Draw value labels

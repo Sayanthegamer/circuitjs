@@ -52,6 +52,7 @@ export function useCanvasInteraction(
 ) {
   const activePointers = useRef(new Map<number, PointerSnapshot>());
   const lastPinchDist = useRef<number | null>(null);
+  const dragStartCoords = useRef<{ x: number, y: number, ex: number, ey: number, ex2: number, ey2: number } | null>(null);
 
   const getWorldPos = useCallback((e: React.PointerEvent) => {
     const canvas = canvasRef.current;
@@ -80,7 +81,7 @@ export function useCanvasInteraction(
 
     const rect = canvas.getBoundingClientRect();
     const { camera, circuit } = useCircuitStore.getState();
-    const { tool, setSelectedId, setPlacing, setTool } = useUIStore.getState();
+    const { tool, setSelectedId, setPlacing, setTool, hoveredElm, hoveredNode, setDraggingState } = useUIStore.getState();
 
     if (activePointers.current.size === 2) {
       // Start two-finger gesture
@@ -117,10 +118,30 @@ export function useCanvasInteraction(
       camera.endPan();
     }
 
+
     // Left-click or single touch
     if (e.pointerType === 'mouse' ? e.button === 0 : e.isPrimary) {
       const world = getWorldPos(e);
       const snapped = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
+
+      // Check if we are starting a drag on the currently selected element or its node
+      if (tool === 'select' && hoveredElm) {
+        const elm = circuit.getElement(hoveredElm.id);
+        if (elm) {
+          // Only allow dragging if the hovered element is already selected, or we just clicked it
+          setSelectedId(elm.id);
+          setDraggingState(elm.id, hoveredNode);
+          dragStartCoords.current = {
+            x: world.x,
+            y: world.y,
+            ex: elm.x,
+            ey: elm.y,
+            ex2: elm.x2,
+            ey2: elm.y2,
+          };
+        }
+      }
+
 
       if (tool === 'select') {
         // Try to find an element near click
@@ -140,8 +161,11 @@ export function useCanvasInteraction(
           setSelectedId(found.id);
         } else {
           setSelectedId(null);
+          setDraggingState(null, null);
           // Start panning on empty space with select tool
-          camera.startPan(e.clientX - rect.left, e.clientY - rect.top);
+          if (!dragStartCoords.current) {
+             camera.startPan(e.clientX - rect.left, e.clientY - rect.top);
+          }
         }
       } else if (tool === 'ground') {
         const { pushHistory, saveToLocalStorage } = useCircuitStore.getState();
@@ -183,7 +207,7 @@ export function useCanvasInteraction(
     }
 
     const { camera, circuit } = useCircuitStore.getState();
-    const { tool, placing, setPlacing, setHoveredElm } = useUIStore.getState();
+    const { tool, placing, setPlacing, setHoveredElm, setHoveredNode, draggingElmId, draggingNode } = useUIStore.getState();
 
     // Track mouse coordinates for NodeHUD positioning (handled in NodeHUD component)
     lastMousePos.x = e.clientX;
@@ -218,7 +242,38 @@ export function useCanvasInteraction(
       return;
     }
 
+
+    if (draggingElmId && dragStartCoords.current) {
+      const elm = circuit.getElement(draggingElmId);
+      if (elm) {
+         const world = getWorldPos(e);
+         const dx = world.x - dragStartCoords.current.x;
+         const dy = world.y - dragStartCoords.current.y;
+
+         if (draggingNode === null) {
+            // Drag whole element
+            const newX1 = snapToGrid(dragStartCoords.current.ex + dx);
+            const newY1 = snapToGrid(dragStartCoords.current.ey + dy);
+            const newX2 = snapToGrid(dragStartCoords.current.ex2 + dx);
+            const newY2 = snapToGrid(dragStartCoords.current.ey2 + dy);
+
+            elm.x = newX1;
+            elm.y = newY1;
+            elm.x2 = newX2;
+            elm.y2 = newY2;
+         } else if (draggingNode === 0) {
+            elm.x = snapToGrid(dragStartCoords.current.ex + dx);
+            elm.y = snapToGrid(dragStartCoords.current.ey + dy);
+         } else if (draggingNode === 1) {
+            elm.x2 = snapToGrid(dragStartCoords.current.ex2 + dx);
+            elm.y2 = snapToGrid(dragStartCoords.current.ey2 + dy);
+         }
+         return;
+      }
+    }
+
     // Single pointer move
+
     // Panning
     if (camera.panning) {
       if (activePointers.current.size === 1 || e.pointerType === 'mouse') {
@@ -257,10 +312,24 @@ export function useCanvasInteraction(
         const d = distToElement(world.x, world.y, elm);
         if (d < bestDist) { bestDist = d; found = elm; }
       }
+
       setHoveredElm(found);
+
+      if (found) {
+        const d0 = Math.hypot(world.x - found.x, world.y - found.y);
+        const d1 = Math.hypot(world.x - found.x2, world.y - found.y2);
+
+        if (d0 < 15) setHoveredNode(0);
+        else if (found.type !== 'ground' && d1 < 15) setHoveredNode(1);
+        else setHoveredNode(null);
+      } else {
+        setHoveredNode(null);
+      }
     } else {
       setHoveredElm(null);
+      setHoveredNode(null);
     }
+
   }, [canvasRef, getWorldPos]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -270,8 +339,21 @@ export function useCanvasInteraction(
       lastPinchDist.current = null;
     }
 
+
     const { camera, circuit } = useCircuitStore.getState();
-    const { placing, setPlacing, setSelectedId } = useUIStore.getState();
+    const { placing, setPlacing, setSelectedId, draggingElmId, setDraggingState } = useUIStore.getState();
+
+    if (draggingElmId) {
+      const { pushHistory, saveToLocalStorage } = useCircuitStore.getState();
+      pushHistory();
+      circuit.analyzeCircuit();
+      saveToLocalStorage();
+
+      setDraggingState(null, null);
+      dragStartCoords.current = null;
+      return;
+    }
+
 
     if (e.pointerType === 'mouse' && (e.button === 1 || e.button === 2)) {
       camera.endPan();
