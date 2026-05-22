@@ -52,25 +52,24 @@ export class DiodeElement extends CircuitElement {
       voltdiff = this.lastvoltdiff;
     }
 
-    // 1. Calculate the step-limited voltage for this iteration
-    this.vdio = this.limitStep(voltdiff, this.lastvoltdiff);
-
-    // 2. Check convergence: Does the limited target match our operating point?
-    if (Math.abs(this.vdio - this.lastvoltdiff) > 0.001) {
+    // 1. FIX: Check convergence using the raw target step BEFORE applying limits
+    if (Math.abs(voltdiff - this.lastvoltdiff) > 0.001) {
       stamper.converged = false;
     }
 
-    // 3. Commit to this iteration's working voltage
-    this.lastvoltdiff = this.vdio;
+    // 2. Calculate the step-limited voltage for this iteration
+    let vnext = this.limitStep(voltdiff, this.lastvoltdiff);
 
-    // 4. Tighten the clamping boundary to safeguard matrix conditioning.
-    // Scaled by thermal voltage to support higher forward voltage thresholds for LEDs
-    let vclamp = this.vdio;
-    const maxVf = 45 * this.vt;
-    if (vclamp > maxVf) vclamp = maxVf;
-    if (vclamp < -15) vclamp = -15;
+    // 3. FIX: Raise maxVf ceiling to 150 * vt (~3.87V) so high forward-voltage LEDs can turn on
+    const maxVf = 150 * this.vt;
+    if (vnext > maxVf) vnext = maxVf;
+    if (vnext < -15) vnext = -15;
 
-    const expTerm = Math.exp(vclamp / this.vt);
+    // 4. FIX: Synchronize historical tracking variables with the actual clamped value
+    this.vdio = vnext;
+    this.lastvoltdiff = vnext;
+
+    const expTerm = Math.exp(this.vdio / this.vt);
     let geq = (this.leakage / this.vt) * expTerm;
 
     let gmin = this.leakage * 0.01;
@@ -87,7 +86,7 @@ export class DiodeElement extends CircuitElement {
     if (geq > 1e4)   geq = 1e4; // Hard cap on maximum conductance to protect LU factorization
 
     const current = this.leakage * (expTerm - 1);
-    const ieq = current - geq * vclamp;
+    const ieq = current - geq * this.vdio;
 
     stamper.stampConductance(this.nodes[0], this.nodes[1], geq);
     stamper.stampCurrentSource(this.nodes[0], this.nodes[1], ieq);
