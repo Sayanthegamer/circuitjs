@@ -73,9 +73,10 @@ export class DiodeElement extends CircuitElement {
     this.lastvoltdiff = this.vdio;
 
     // 4. Tighten the clamping boundary to safeguard matrix conditioning.
-    // Capping at 1.2V yields a manageable geq, avoiding floating-point breakdown.
+    // Scaled by thermal voltage to support higher forward voltage thresholds for LEDs
     let vclamp = this.vdio;
-    if (vclamp > 1.2) vclamp = 1.2;
+    const maxVf = 45 * this.vt;
+    if (vclamp > maxVf) vclamp = maxVf;
     if (vclamp < -15) vclamp = -15;
 
     const expTerm = Math.exp(vclamp / this.vt);
@@ -104,7 +105,8 @@ export class DiodeElement extends CircuitElement {
   calculateCurrent(): void {
     const voltdiff = this.volts[0] - this.volts[1];
     let vclamp = voltdiff;
-    if (vclamp > 1.2) vclamp = 1.2;
+    const maxVf = 45 * this.vt;
+    if (vclamp > maxVf) vclamp = maxVf;
     if (vclamp < -15) vclamp = -15;
     this.current = this.leakage * (Math.exp(vclamp / this.vt) - 1);
   }
