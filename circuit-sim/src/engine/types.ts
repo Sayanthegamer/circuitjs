@@ -144,6 +144,7 @@ export interface IStamper {
   stampNonLinear(i: number): void;
   updateVoltageSource(n1: number, n2: number, vs: number, v: number): void;
   nodeCount: number;
+  t: number;
   timeStep: number;
   converged: boolean;
   subIterations: number;

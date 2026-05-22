@@ -24,7 +24,8 @@ export class VoltageSourceElement extends CircuitElement {
     if (this.waveform === 'DC') {
       return this.maxVoltage;
     } else {
-      return Math.sin(2 * Math.PI * this.frequency * t) * this.maxVoltage;
+      const safeFrequency = (Number.isFinite(this.frequency) && this.frequency > 0) ? this.frequency : 1;
+      return Math.sin(2 * Math.PI * safeFrequency * t) * this.maxVoltage;
     }
   }
 
@@ -38,7 +39,7 @@ export class VoltageSourceElement extends CircuitElement {
 
   doStep(stamper: IStamper): void {
     if (this.waveform === 'AC') {
-      stamper.updateVoltageSource(this.nodes[0], this.nodes[1], this.voltSource, this.getVoltage((stamper as unknown as { t: number }).t));
+      stamper.updateVoltageSource(this.nodes[0], this.nodes[1], this.voltSource, this.getVoltage(stamper.t));
     }
   }
 

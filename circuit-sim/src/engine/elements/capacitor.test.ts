@@ -14,6 +14,7 @@ describe('CapacitorElement', () => {
 
     const stamper: IStamper = {
       timeStep: 0.001,
+      t: 0,
       stampResistor: vi.fn(),
       stampRightSide: vi.fn(),
       stampCurrentSource: vi.fn(),
@@ -61,6 +62,7 @@ describe('CapacitorElement', () => {
 
     const stamper: IStamper = {
       timeStep: 0.001,
+      t: 0,
       stampResistor: vi.fn(),
       stampRightSide: vi.fn(),
       stampCurrentSource: vi.fn(),

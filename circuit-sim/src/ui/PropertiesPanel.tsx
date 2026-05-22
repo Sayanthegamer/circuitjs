@@ -80,7 +80,6 @@ function PropertiesPanelInner({
 
     } else if (selectedElm.type === 'voltage' && prop === 'waveform') {
       (selectedElm as VoltageSourceElement).waveform = value as unknown as 'DC' | 'AC';
-      circuit.analyzeCircuit();
     } else if (selectedElm.type === 'voltage' && prop === 'frequency') {
       (selectedElm as VoltageSourceElement).frequency = value as number;
 
@@ -110,7 +109,7 @@ function PropertiesPanelInner({
 
   const commitFrequency = () => {
     const val = parseFloat(frequencyStr);
-    if (isNaN(val)) {
+    if (!(Number.isFinite(val) && val > 0)) {
       setFrequencyStr((selectedElm as VoltageSourceElement).frequency.toString());
     } else {
       handlePropChange('frequency', val);
