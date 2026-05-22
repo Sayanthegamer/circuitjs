@@ -123,11 +123,14 @@ export function useCanvasInteraction(
     if (e.pointerType === 'mouse' ? e.button === 0 : e.isPrimary) {
       const world = getWorldPos(e);
       const snapped = { x: snapToGrid(world.x), y: snapToGrid(world.y) };
-
       // Check if we are starting a drag on the currently selected element or its node
       if (tool === 'select' && hoveredElm) {
         const elm = circuit.getElement(hoveredElm.id);
         if (elm) {
+          // Push history before dragging mutates coordinates
+          const { pushHistory } = useCircuitStore.getState();
+          pushHistory();
+
           // Only allow dragging if the hovered element is already selected, or we just clicked it
           setSelectedId(elm.id);
           setDraggingState(elm.id, hoveredNode);
@@ -139,8 +142,10 @@ export function useCanvasInteraction(
             ex2: elm.x2,
             ey2: elm.y2,
           };
+          return; // Early return to prevent standard selection logic from overwriting this drag
         }
       }
+
 
 
       if (tool === 'select') {
@@ -342,10 +347,8 @@ export function useCanvasInteraction(
 
     const { camera, circuit } = useCircuitStore.getState();
     const { placing, setPlacing, setSelectedId, draggingElmId, setDraggingState } = useUIStore.getState();
-
     if (draggingElmId) {
-      const { pushHistory, saveToLocalStorage } = useCircuitStore.getState();
-      pushHistory();
+      const { saveToLocalStorage } = useCircuitStore.getState();
       circuit.analyzeCircuit();
       saveToLocalStorage();
 
@@ -353,6 +356,7 @@ export function useCanvasInteraction(
       dragStartCoords.current = null;
       return;
     }
+
 
 
     if (e.pointerType === 'mouse' && (e.button === 1 || e.button === 2)) {
