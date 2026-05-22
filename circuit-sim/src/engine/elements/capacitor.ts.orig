@@ -8,7 +8,6 @@ export class CapacitorElement extends CircuitElement {
 
   private compResistance = 0;
   private currentSourceValue = 0;
-  private lastIsEuler = false;
 
   constructor(x: number, y: number, x2: number, y2: number, capacitance = 1e-3) {
     super(x, y, x2, y2);
@@ -16,8 +15,7 @@ export class CapacitorElement extends CircuitElement {
   }
 
   stamp(stamper: IStamper): void {
-    const isEuler = !!stamper.isBackwardEuler;
-    this.lastIsEuler = isEuler;
+    const isEuler = (stamper as unknown as Record<string, unknown>).isBackwardEuler;
 
     // Dynamically alternate integration rules to smooth structural switches
     const activeCapResistance = isEuler
@@ -35,7 +33,7 @@ export class CapacitorElement extends CircuitElement {
     const vdiff = this.volts[0] - this.volts[1];
 
     // Evaluate current rule state via math properties
-    const isEuler = this.lastIsEuler;
+    const isEuler = this.compResistance > (5e-6 / (1.5 * this.capacitance));
 
     if (isEuler) {
       this.currentSourceValue = (vdiff / this.compResistance);

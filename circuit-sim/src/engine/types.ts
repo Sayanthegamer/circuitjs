@@ -148,6 +148,7 @@ export interface IStamper {
   timeStep: number;
   converged: boolean;
   subIterations: number;
+  isBackwardEuler?: boolean;
 }
 
 export interface SimulationState {
