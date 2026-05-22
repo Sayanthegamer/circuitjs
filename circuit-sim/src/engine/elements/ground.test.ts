@@ -34,6 +34,7 @@ describe('GroundElement', () => {
     const ground = new GroundElement(0, 0);
     const stamper: IStamper = {
       timeStep: 0.001,
+      t: 0,
       stampResistor: vi.fn(),
       stampRightSide: vi.fn(),
       stampCurrentSource: vi.fn(),

@@ -33,6 +33,14 @@ function PropertiesPanelInner({
   const [resistanceStr, setResistanceStr] = useState(() =>
     selectedElm.type === 'resistor' ? (selectedElm as ResistorElement).resistance.toString() : ''
   );
+
+  const [waveformStr, setWaveformStr] = useState(() =>
+    selectedElm.type === 'voltage' ? (selectedElm as VoltageSourceElement).waveform : 'DC'
+  );
+  const [frequencyStr, setFrequencyStr] = useState(() =>
+    selectedElm.type === 'voltage' ? (selectedElm as VoltageSourceElement).frequency.toString() : '40'
+  );
+
   const [voltageStr, setVoltageStr] = useState(() =>
     selectedElm.type === 'voltage' ? (selectedElm as VoltageSourceElement).maxVoltage.toString() : ''
   );
@@ -61,13 +69,20 @@ function PropertiesPanelInner({
     }
   };
 
-  const handlePropChange = (prop: 'resistance' | 'voltage' | 'capacitance' | 'inductance' | 'closed', value: number) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handlePropChange = (prop: 'resistance' | 'voltage' | 'capacitance' | 'inductance' | 'closed' | 'waveform' | 'frequency', value: any) => {
     const { pushHistory, saveToLocalStorage } = useCircuitStore.getState();
     pushHistory();
 
     if (selectedElm.type === 'resistor' && prop === 'resistance') {
       // eslint-disable-next-line react-hooks/immutability
       (selectedElm as ResistorElement).resistance = value;
+
+    } else if (selectedElm.type === 'voltage' && prop === 'waveform') {
+      (selectedElm as VoltageSourceElement).waveform = value as unknown as 'DC' | 'AC';
+    } else if (selectedElm.type === 'voltage' && prop === 'frequency') {
+      (selectedElm as VoltageSourceElement).frequency = value as number;
+
     } else if (selectedElm.type === 'voltage' && prop === 'voltage') {
       (selectedElm as VoltageSourceElement).maxVoltage = value;
     } else if (selectedElm.type === 'capacitor' && prop === 'capacitance') {
@@ -89,6 +104,22 @@ function PropertiesPanelInner({
       handlePropChange('resistance', val);
       setResistanceStr(val.toString());
     }
+  };
+
+
+  const commitFrequency = () => {
+    const val = parseFloat(frequencyStr);
+    if (!(Number.isFinite(val) && val > 0)) {
+      setFrequencyStr((selectedElm as VoltageSourceElement).frequency.toString());
+    } else {
+      handlePropChange('frequency', val);
+      setFrequencyStr(val.toString());
+    }
+  };
+
+  const commitWaveform = (wf: 'DC' | 'AC') => {
+    handlePropChange('waveform', wf);
+    setWaveformStr(wf);
   };
 
   const commitVoltage = () => {
@@ -193,24 +224,72 @@ function PropertiesPanelInner({
             )}
 
             {selectedElm.type === 'voltage' && (
-              <div className="space-y-1.5 group">
-                <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
-                  Voltage Source
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={voltageStr}
-                    onChange={(e) => setVoltageStr(e.target.value)}
-                    onBlur={commitVoltage}
-                    onKeyDown={(e) => handleKeyDown(e, commitVoltage)}
-                    className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
-                    V
-                  </span>
+
+              <>
+                {/* Waveform Toggle */}
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Waveform
+                  </label>
+                  <div className="flex border border-border-hairline">
+                    <button
+                      className={`flex-1 py-1.5 text-xs font-mono transition-colors ${waveformStr === 'DC' ? 'bg-primary text-white font-bold' : 'bg-surface-dim text-text-secondary hover:bg-surface-bright'}`}
+                      onClick={() => commitWaveform('DC')}
+                    >
+                      DC
+                    </button>
+                    <button
+                      className={`flex-1 py-1.5 text-xs font-mono transition-colors ${waveformStr === 'AC' ? 'bg-primary text-white font-bold' : 'bg-surface-dim text-text-secondary hover:bg-surface-bright'}`}
+                      onClick={() => commitWaveform('AC')}
+                    >
+                      AC
+                    </button>
+                  </div>
                 </div>
-              </div>
+
+                {/* Max Voltage Input */}
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    {waveformStr === 'AC' ? 'Peak Voltage' : 'Voltage'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={voltageStr}
+                      onChange={(e) => setVoltageStr(e.target.value)}
+                      onBlur={commitVoltage}
+                      onKeyDown={(e) => handleKeyDown(e, commitVoltage)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                      V
+                    </span>
+                  </div>
+                </div>
+
+                {/* Frequency Input (Only if AC) */}
+                {waveformStr === 'AC' && (
+                  <div className="space-y-1.5 group">
+                    <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                      Frequency
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={frequencyStr}
+                        onChange={(e) => setFrequencyStr(e.target.value)}
+                        onBlur={commitFrequency}
+                        onKeyDown={(e) => handleKeyDown(e, commitFrequency)}
+                        className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                        Hz
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </>
+
             )}
 
             {selectedElm.type === 'capacitor' && (
