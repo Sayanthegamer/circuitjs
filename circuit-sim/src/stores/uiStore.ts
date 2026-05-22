@@ -25,6 +25,10 @@ interface UIState {
 
   // Hover state — subscribed to only by NodeHUD, not the whole App
   hoveredElm: ICircuitElement | null;
+  hoveredNode: number | null;
+
+  draggingElmId: string | null;
+  draggingNode: number | null;
 
   // Plotter state
   plotterMinimized: boolean;
@@ -41,6 +45,8 @@ interface UIState {
   setViewMode: (m: 'workspace' | 'whitepaper') => void;
   setShowValues: (s: boolean) => void;
   setHoveredElm: (elm: ICircuitElement | null) => void;
+  setHoveredNode: (node: number | null) => void;
+  setDraggingState: (elmId: string | null, node: number | null) => void;
   
   setPlotterMinimized: (m: boolean) => void;
   setMobilePaletteOpen: (open: boolean) => void;
@@ -57,6 +63,10 @@ export const useUIStore = create<UIState>((set) => ({
   viewMode: 'workspace',
   showValues: true,
   hoveredElm: null,
+  hoveredNode: null,
+
+  draggingElmId: null,
+  draggingNode: null,
   
   plotterMinimized: true,
   mobilePaletteOpen: false,
@@ -69,6 +79,8 @@ export const useUIStore = create<UIState>((set) => ({
   setViewMode: (m) => set({ viewMode: m }),
   setShowValues: (s) => set({ showValues: s }),
   setHoveredElm: (elm) => set({ hoveredElm: elm }),
+  setHoveredNode: (node) => set({ hoveredNode: node }),
+  setDraggingState: (elmId, node) => set({ draggingElmId: elmId, draggingNode: node }),
   
   setPlotterMinimized: (m) => set({ plotterMinimized: m }),
   setMobilePaletteOpen: (open) => set({ mobilePaletteOpen: open }),

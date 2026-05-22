@@ -10,16 +10,17 @@ import { drawCurrentDots } from './current-dots';
 const POST_RADIUS = 3.5;
 
 /** Draw a connection post (circle) at world coordinates */
-function drawPost(ctx: CanvasRenderingContext2D, x: number, y: number, v: number, selected: boolean): void {
+function drawPost(ctx: CanvasRenderingContext2D, x: number, y: number, v: number, selected: boolean, hovered?: boolean): void {
   ctx.beginPath();
   ctx.arc(x, y, POST_RADIUS, 0, Math.PI * 2);
   ctx.fillStyle = selected ? '#818cf8' : voltageToColor(v);
   ctx.fill();
-  if (selected) {
+  if (selected || hovered) {
     ctx.strokeStyle = '#a5b4fc';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = hovered ? 2.5 : 1.5;
     ctx.stroke();
   }
+
 }
 
 /** Draw a lead (wire segment) between two points with voltage color */
@@ -35,7 +36,7 @@ function drawLead(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: num
 // ---- Renderers ----
 
 export function drawSwitch(
-  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number,
+  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number, hoveredNode?: number | null
 ): void {
   const { x: x1, y: y1, x2, y2 } = elm;
   const dx = x2 - x1;
@@ -95,15 +96,15 @@ export function drawSwitch(
   ctx.arc(bx2, by2, 3, 0, Math.PI * 2);
   ctx.fill();
 
-  drawPost(ctx, x1, y1, elm.volts[0], selected);
-  drawPost(ctx, x2, y2, elm.volts[1], selected);
+  drawPost(ctx, x1, y1, elm.volts[0], selected, hoveredNode === 0 || hoveredNode === null);
+  drawPost(ctx, x2, y2, elm.volts[1], selected, hoveredNode === 1 || hoveredNode === null);
   if (closed) {
     drawCurrentDots(ctx, x1, y1, x2, y2, elm.getCurrent(), time, zoom);
   }
 }
 
 export function drawDiode(
-  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number,
+  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number, hoveredNode?: number | null
 ): void {
   const { x: x1, y: y1, x2, y2 } = elm;
   const dx = x2 - x1;
@@ -146,15 +147,15 @@ export function drawDiode(
   ctx.lineTo(bx2 - perpX * (diodeWidth / 2), by2 - perpY * (diodeWidth / 2));
   ctx.stroke();
 
-  drawPost(ctx, x1, y1, elm.volts[0], selected);
-  drawPost(ctx, x2, y2, elm.volts[1], selected);
+  drawPost(ctx, x1, y1, elm.volts[0], selected, hoveredNode === 0 || hoveredNode === null);
+  drawPost(ctx, x2, y2, elm.volts[1], selected, hoveredNode === 1 || hoveredNode === null);
   drawCurrentDots(ctx, x1, y1, x2, y2, elm.getCurrent(), time, zoom);
 }
 
 export function drawLED(
-  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number,
+  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number, hoveredNode?: number | null
 ): void {
-  drawDiode(ctx, elm, selected, time, zoom);
+  drawDiode(ctx, elm, selected, time, zoom, hoveredNode);
 
   const { x: x1, y: y1, x2, y2 } = elm;
   const dx = x2 - x1;
@@ -201,7 +202,7 @@ export function drawLED(
 
 
 export function drawWire(
-  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number,
+  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number, hoveredNode?: number | null
 ): void {
   const v = elm.volts[0] || 0;
   ctx.strokeStyle = selected ? '#818cf8' : voltageToColor(v);
@@ -211,13 +212,13 @@ export function drawWire(
   ctx.moveTo(elm.x, elm.y);
   ctx.lineTo(elm.x2, elm.y2);
   ctx.stroke();
-  drawPost(ctx, elm.x, elm.y, v, selected);
-  drawPost(ctx, elm.x2, elm.y2, v, selected);
+  drawPost(ctx, elm.x, elm.y, v, selected, hoveredNode === 0 || hoveredNode === null);
+  drawPost(ctx, elm.x2, elm.y2, v, selected, hoveredNode === 1 || hoveredNode === null);
   drawCurrentDots(ctx, elm.x, elm.y, elm.x2, elm.y2, elm.getCurrent(), time, zoom);
 }
 
 export function drawResistor(
-  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number,
+  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number, hoveredNode?: number | null
 ): void {
   const { x: x1, y: y1, x2, y2 } = elm;
   const dx = x2 - x1;
@@ -267,15 +268,15 @@ export function drawResistor(
   ctx.stroke();
 
   // Posts
-  drawPost(ctx, x1, y1, elm.volts[0], selected);
-  drawPost(ctx, x2, y2, elm.volts[1], selected);
+  drawPost(ctx, x1, y1, elm.volts[0], selected, hoveredNode === 0 || hoveredNode === null);
+  drawPost(ctx, x2, y2, elm.volts[1], selected, hoveredNode === 1 || hoveredNode === null);
 
   // Current dots
   drawCurrentDots(ctx, x1, y1, x2, y2, elm.getCurrent(), time, zoom);
 }
 
 export function drawVoltageSource(
-  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number,
+  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number, hoveredNode?: number | null
 ): void {
   const { x: x1, y: y1, x2, y2 } = elm;
   const dx = x2 - x1;
@@ -333,15 +334,15 @@ export function drawVoltageSource(
   ctx.stroke();
 
   // Posts
-  drawPost(ctx, x1, y1, elm.volts[0], selected);
-  drawPost(ctx, x2, y2, elm.volts[1], selected);
+  drawPost(ctx, x1, y1, elm.volts[0], selected, hoveredNode === 0 || hoveredNode === null);
+  drawPost(ctx, x2, y2, elm.volts[1], selected, hoveredNode === 1 || hoveredNode === null);
 
   // Current dots
   drawCurrentDots(ctx, x1, y1, x2, y2, elm.getCurrent(), time, zoom);
 }
 
 export function drawGround(
-  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, _time: number, _zoom: number,
+  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, _time: number, _zoom: number, hoveredNode?: number | null
 ): void {
   const { x, y } = elm;
   const size = 12;
@@ -362,11 +363,11 @@ export function drawGround(
     ctx.stroke();
   }
 
-  drawPost(ctx, x, y, 0, selected);
+  drawPost(ctx, x, y, 0, selected, hoveredNode === 0 || hoveredNode === null);
 }
 
 export function drawCapacitor(
-  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number,
+  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number, hoveredNode?: number | null
 ): void {
   const { x: x1, y: y1, x2, y2 } = elm;
   const dx = x2 - x1;
@@ -406,13 +407,13 @@ export function drawCapacitor(
   ctx.lineTo(bx2 + perpX * plateSize, by2 + perpY * plateSize);
   ctx.stroke();
 
-  drawPost(ctx, x1, y1, elm.volts[0], selected);
-  drawPost(ctx, x2, y2, elm.volts[1], selected);
+  drawPost(ctx, x1, y1, elm.volts[0], selected, hoveredNode === 0 || hoveredNode === null);
+  drawPost(ctx, x2, y2, elm.volts[1], selected, hoveredNode === 1 || hoveredNode === null);
   drawCurrentDots(ctx, x1, y1, x2, y2, elm.getCurrent(), time, zoom);
 }
 
 export function drawInductor(
-  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number,
+  ctx: CanvasRenderingContext2D, elm: ICircuitElement, selected: boolean, time: number, zoom: number, hoveredNode?: number | null
 ): void {
   const { x: x1, y: y1, x2, y2 } = elm;
   const dx = x2 - x1;
@@ -462,34 +463,49 @@ export function drawInductor(
   }
   ctx.stroke();
 
-  drawPost(ctx, x1, y1, elm.volts[0], selected);
-  drawPost(ctx, x2, y2, elm.volts[1], selected);
+  drawPost(ctx, x1, y1, elm.volts[0], selected, hoveredNode === 0 || hoveredNode === null);
+  drawPost(ctx, x2, y2, elm.volts[1], selected, hoveredNode === 1 || hoveredNode === null);
   drawCurrentDots(ctx, x1, y1, x2, y2, elm.getCurrent(), time, zoom);
 }
 
 /** Dispatch to the correct renderer based on element type */
+
 export function drawElement(
   ctx: CanvasRenderingContext2D,
   elm: ICircuitElement,
   selected: boolean,
   time: number,
   zoom: number,
+  hoveredNode?: number | null
 ): void {
+  // Add soft glow for the whole element if hoveredNode is null (and it's hovered)
+  // We determine it's hovered if hoveredNode is exactly null (passed from loop when hovered or dragged)
+  if (hoveredNode === null) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(165, 180, 252, 0.4)'; // soft glow color
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(elm.x, elm.y);
+    ctx.lineTo(elm.x2, elm.y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   switch (elm.type) {
-    case 'wire':     drawWire(ctx, elm, selected, time, zoom); break;
-    case 'resistor': drawResistor(ctx, elm, selected, time, zoom); break;
-    case 'voltage':  drawVoltageSource(ctx, elm, selected, time, zoom); break;
-    case 'ground':   drawGround(ctx, elm, selected, time, zoom); break;
-    case 'capacitor': drawCapacitor(ctx, elm, selected, time, zoom); break;
-    case 'inductor': drawInductor(ctx, elm, selected, time, zoom); break;
-    case 'switch': drawSwitch(ctx, elm, selected, time, zoom); break;
-    case 'diode': drawDiode(ctx, elm, selected, time, zoom); break;
-    case 'led': drawLED(ctx, elm, selected, time, zoom); break;
+    case 'wire':     drawWire(ctx, elm, selected, time, zoom, hoveredNode); break;
+    case 'resistor': drawResistor(ctx, elm, selected, time, zoom, hoveredNode); break;
+    case 'voltage':  drawVoltageSource(ctx, elm, selected, time, zoom, hoveredNode); break;
+    case 'ground':   drawGround(ctx, elm, selected, time, zoom, hoveredNode); break;
+    case 'capacitor': drawCapacitor(ctx, elm, selected, time, zoom, hoveredNode); break;
+    case 'inductor': drawInductor(ctx, elm, selected, time, zoom, hoveredNode); break;
+    case 'switch': drawSwitch(ctx, elm, selected, time, zoom, hoveredNode); break;
+    case 'diode': drawDiode(ctx, elm, selected, time, zoom, hoveredNode); break;
+    case 'led': drawLED(ctx, elm, selected, time, zoom, hoveredNode); break;
     default:
       // Fallback: draw as a line
       drawLead(ctx, elm.x, elm.y, elm.x2, elm.y2, elm.volts[0] || 0);
-      drawPost(ctx, elm.x, elm.y, elm.volts[0] || 0, selected);
-      drawPost(ctx, elm.x2, elm.y2, elm.volts[1] || 0, selected);
+      drawPost(ctx, elm.x, elm.y, elm.volts[0] || 0, selected, hoveredNode === 0 || hoveredNode === null);
+      drawPost(ctx, elm.x2, elm.y2, elm.volts[1] || 0, selected, hoveredNode === 1 || hoveredNode === null);
   }
 }
-
