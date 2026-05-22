@@ -24,33 +24,24 @@ export class DiodeElement extends CircuitElement {
   }
 
   limitStep(vnew: number, vold: number): number {
-    let arg: number;
-    let vn = vnew;
     const vcrit = this.vt * Math.log(this.vt / (Math.SQRT2 * this.leakage));
 
-    // check new voltage; has current changed by factor of e^2?
-    if (vnew > vcrit && Math.abs(vnew - vold) > (this.vt + this.vt)) {
-      if (vold > 0) {
-        arg = 1 + (vnew - vold) / this.vt;
-        if (arg > 0) {
-          // adjust vnew so that the current is the same
-          // as in linearized model from previous iteration.
-          vn = vold + this.vt * Math.log(arg);
-        } else {
-          vn = vcrit;
-        }
-      } else {
-        // adjust vnew so that the current is the same
-        // as in linearized model from previous iteration.
-        vn = this.vt * Math.log(vnew / this.vt);
-      }
+    // If the voltage step is small or hasn't crossed the critical threshold, do not limit
+    if (vnew <= vcrit || Math.abs(vnew - vold) <= (this.vt + this.vt)) {
+      return vnew;
     }
 
-    // Still keep a basic limit to prevent wild swings (like SPICE PNJLIM basic check)
-    // Actually Java CirSim doesn't do this hard clamping, but it's safe to keep a looser one or omit.
-    // Let's stick closer to the Java original which just uses the logic above.
-    // But since we removed the clamping, let's just return vn.
-    return vn;
+    if (vold > 0) {
+      const arg = 1 + (vnew - vold) / this.vt;
+      if (arg > 0) {
+        // Standard SPICE pnjlim logarithmic step compression
+        return vold + this.vt * Math.log(arg);
+      }
+      return vcrit;
+    } 
+    
+    // FIX: Instead of crushing the step down to near-zero, step safely to the critical turn-on point
+    return vcrit;
   }
 
   doStep(stamper: IStamper): void {
