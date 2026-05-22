@@ -3,7 +3,7 @@ import type { IStamper } from '../types';
 
 export class DiodeElement extends CircuitElement {
   type = 'diode';
-  
+
   // Shockley diode model parameters
   leakage = 1e-14; // Is
   vt = 0.02585;    // Thermal voltage
@@ -104,8 +104,7 @@ export class DiodeElement extends CircuitElement {
   calculateCurrent(): void {
     const voltdiff = this.volts[0] - this.volts[1];
     let vclamp = voltdiff;
-    if (vclamp > 1.2) vclamp = 1.2;
-    if (vclamp < -15) vclamp = -15;
+    if (vclamp > 10) vclamp = 10;
     this.current = this.leakage * (Math.exp(vclamp / this.vt) - 1);
   }
 }
