@@ -28,9 +28,30 @@ export function useSimulationLoop(
     y: 0,
     x2: 0,
     y2: 0,
-    volts: [0, 0],
-    nodes: [0, 0],
+    volts: [0, 0, 0],
+    nodes: [0, 0, 0],
     getCurrent: () => 0,
+    getPostCount(this: any) {
+      if (this.type === 'bjt') return 3;
+      return 2;
+    },
+    getPost(this: any, n: number) {
+      if (this.type === 'bjt') {
+        const horizontal = Math.abs(this.x2 - this.x) > Math.abs(this.y2 - this.y);
+        if (horizontal) {
+          if (n === 0) return { x: this.x2, y: this.y - 32 }; // Collector
+          if (n === 1) return { x: this.x, y: this.y };       // Base
+          return { x: this.x2, y: this.y + 32 };              // Emitter
+        } else {
+          if (n === 0) return { x: this.x - 32, y: this.y2 }; // Collector
+          if (n === 1) return { x: this.x, y: this.y };       // Base
+          return { x: this.x + 32, y: this.y2 };              // Emitter
+        }
+      }
+      if (n === 0) return { x: this.x, y: this.y };
+      return { x: this.x2, y: this.y2 };
+    },
+    getCurrentIntoNode() { return 0; },
     stamp: () => {},
     startIteration: () => {},
     doStep: () => {},
