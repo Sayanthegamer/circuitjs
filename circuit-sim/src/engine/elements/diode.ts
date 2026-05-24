@@ -78,8 +78,8 @@ export class DiodeElement extends CircuitElement {
     // Hard safety clamps for Newton-Raphson first-step stability
     const maxVf = 150 * this.vt;
     if (vnext > maxVf) vnext = maxVf;
-    if (vnext < -15) vnext = -15;
-
+    if (vnext < -1500) vnext = -1500; // FIXED: Relaxed to prevent deadlock on reverse bias
+    
     this.vdio = vnext;
     this.lastvoltdiff = vnext;
 
@@ -143,8 +143,8 @@ export class DiodeElement extends CircuitElement {
     // Safety clamp (should rarely hit this if converged)
     const maxVf = 150 * this.vt;
     if (v_junction > maxVf) v_junction = maxVf;
-    if (v_junction < -15) v_junction = -15;
-
+    if (v_junction < -1500) v_junction = -1500; // FIXED: Relaxed to match doStep bounds
+    
     // Calculate true current flowing through the component based on the junction voltage
     const expTerm = Math.exp(v_junction / this.vt);
     this.current = this.leakage * (expTerm - 1);
