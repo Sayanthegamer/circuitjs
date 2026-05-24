@@ -9,6 +9,10 @@ import {
   SwitchElement,
   DiodeElement,
   LEDElement,
+  BJTElement,
+  CurrentSourceElement,
+  LogicGateElement,
+  MutualCouplingElement,
 } from './elements';
 
 export interface SerializedElement {
@@ -24,6 +28,25 @@ export interface SerializedElement {
   maxVoltage?: number;
   closed?: boolean;
   color?: string;
+  isNpn?: boolean;
+  bf?: number;
+  br?: number;
+  currentValue?: number;
+  waveform?: 'DC' | 'AC' | 'SQUARE' | 'TRIANGLE' | 'PULSE' | 'PWL';
+  frequency?: number;
+  dutyCycle?: number;
+  bias?: number;
+  pwlPoints?: { t: number; v: number }[];
+  esr?: number;
+  seriesResistance?: number;
+  gateType?: 'AND' | 'OR' | 'NOT';
+  vHigh?: number;
+  vLow?: number;
+  vThreshold?: number;
+  propagationDelay?: number;
+  couplingCoefficient?: number;
+  ind1Id?: string;
+  ind2Id?: string;
 }
 
 export interface SerializedCircuit {
@@ -44,14 +67,37 @@ export function serializeCircuit(circuit: Circuit): string {
       base.resistance = elm.resistance;
     } else if (elm instanceof CapacitorElement) {
       base.capacitance = elm.capacitance;
+      base.esr = elm.esr;
     } else if (elm instanceof InductorElement) {
       base.inductance = elm.inductance;
+      base.seriesResistance = elm.seriesResistance;
     } else if (elm instanceof VoltageSourceElement) {
       base.maxVoltage = elm.maxVoltage;
+      base.waveform = elm.waveform;
+      base.frequency = elm.frequency;
+      base.dutyCycle = elm.dutyCycle;
+      base.bias = elm.bias;
+      base.pwlPoints = elm.pwlPoints;
     } else if (elm instanceof SwitchElement) {
       base.closed = elm.closed;
     } else if (elm instanceof LEDElement) {
       base.color = elm.color;
+    } else if (elm instanceof BJTElement) {
+      base.isNpn = elm.isNpn;
+      base.bf = elm.bf;
+      base.br = elm.br;
+    } else if (elm instanceof CurrentSourceElement) {
+      base.currentValue = elm.currentValue;
+    } else if (elm instanceof LogicGateElement) {
+      base.gateType = elm.gateType;
+      base.vHigh = elm.vHigh;
+      base.vLow = elm.vLow;
+      base.vThreshold = elm.vThreshold;
+      base.propagationDelay = elm.propagationDelay;
+    } else if (elm instanceof MutualCouplingElement) {
+      base.couplingCoefficient = elm.couplingCoefficient;
+      base.ind1Id = elm.ind1Id;
+      base.ind2Id = elm.ind2Id;
     }
     return base;
   });
@@ -71,12 +117,19 @@ export function deserializeCircuit(circuit: Circuit, jsonStr: string): void {
           break;
         case 'capacitor':
           newElm = new CapacitorElement(elm.x, elm.y, elm.x2, elm.y2, elm.capacitance);
+          if (elm.esr !== undefined) newElm.esr = elm.esr;
           break;
         case 'inductor':
           newElm = new InductorElement(elm.x, elm.y, elm.x2, elm.y2, elm.inductance);
+          if (elm.seriesResistance !== undefined) newElm.seriesResistance = elm.seriesResistance;
           break;
         case 'voltage':
           newElm = new VoltageSourceElement(elm.x, elm.y, elm.x2, elm.y2, elm.maxVoltage);
+          if (elm.waveform) newElm.waveform = elm.waveform;
+          if (elm.frequency !== undefined) newElm.frequency = elm.frequency;
+          if (elm.dutyCycle !== undefined) newElm.dutyCycle = elm.dutyCycle;
+          if (elm.bias !== undefined) newElm.bias = elm.bias;
+          if (elm.pwlPoints) newElm.pwlPoints = elm.pwlPoints;
           break;
         case 'switch':
           newElm = new SwitchElement(elm.x, elm.y, elm.x2, elm.y2);
@@ -88,6 +141,27 @@ export function deserializeCircuit(circuit: Circuit, jsonStr: string): void {
         case 'led':
           newElm = new LEDElement(elm.x, elm.y, elm.x2, elm.y2);
           if (elm.color) newElm.color = elm.color;
+          break;
+        case 'bjt':
+          newElm = new BJTElement(elm.x, elm.y, elm.x2, elm.y2, elm.isNpn ?? true);
+          if (elm.bf !== undefined) newElm.bf = elm.bf;
+          if (elm.br !== undefined) newElm.br = elm.br;
+          break;
+        case 'current_source':
+          newElm = new CurrentSourceElement(elm.x, elm.y, elm.x2, elm.y2, elm.currentValue ?? 0.002);
+          break;
+        case 'logic_gate':
+          newElm = new LogicGateElement(elm.x, elm.y, elm.x2, elm.y2, elm.gateType ?? 'AND');
+          if (elm.vHigh !== undefined) newElm.vHigh = elm.vHigh;
+          if (elm.vLow !== undefined) newElm.vLow = elm.vLow;
+          if (elm.vThreshold !== undefined) newElm.vThreshold = elm.vThreshold;
+          if (elm.propagationDelay !== undefined) newElm.propagationDelay = elm.propagationDelay;
+          break;
+        case 'mutual':
+          newElm = new MutualCouplingElement(elm.x, elm.y, elm.x2, elm.y2);
+          if (elm.couplingCoefficient !== undefined) (newElm as any).couplingCoefficient = elm.couplingCoefficient;
+          if (elm.ind1Id !== undefined) (newElm as any).ind1Id = elm.ind1Id;
+          if (elm.ind2Id !== undefined) (newElm as any).ind2Id = elm.ind2Id;
           break;
         case 'wire':
           newElm = new WireElement(elm.x, elm.y, elm.x2, elm.y2);

@@ -8,3 +8,8 @@ export { InductorElement } from './inductor';
 export { SwitchElement } from './switch';
 export { DiodeElement } from './diode';
 export { LEDElement } from './led';
+export { BJTElement } from './bjt';
+export { CurrentSourceElement } from './current-source';
+export { LogicGateElement } from './logic-gate';
+export { MutualCouplingElement } from './mutual-coupling';
+

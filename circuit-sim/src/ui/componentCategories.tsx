@@ -6,6 +6,7 @@ import {
   ArrowDownToLine,
   Zap,
   ChevronRight,
+  Cpu,
 } from 'lucide-react';
 import { type ToolMode } from '../stores/uiStore';
 
@@ -41,6 +42,7 @@ export const CATEGORIES: Category[] = [
     isOpen: true,
     items: [
       { mode: 'voltage', label: 'DC Voltage', icon: <Battery size={16} />, desc: 'Constant voltage source' },
+      { mode: 'current_source', label: 'Current Source', icon: <Activity size={16} className="rotate-90" />, desc: 'Constant current source' },
     ]
   },
   {
@@ -50,6 +52,7 @@ export const CATEGORIES: Category[] = [
     items: [
       { mode: 'capacitor', label: 'Capacitor', icon: <Minus size={16} className="rotate-90" />, desc: 'Stores charge' },
       { mode: 'inductor', label: 'Inductor', icon: <Activity size={16} />, desc: 'Stores flux' },
+      { mode: 'mutual', label: 'Mutual Inductance', icon: <Zap size={16} className="rotate-90" />, desc: 'Couples two inductors' },
     ]
   },
   {
@@ -59,6 +62,17 @@ export const CATEGORIES: Category[] = [
     items: [
       { mode: 'diode', label: 'Diode', icon: <ChevronRight size={16} />, desc: 'One-way current' },
       { mode: 'led', label: 'LED', icon: <Zap size={16} />, desc: 'Light-emitting diode' },
+      { mode: 'bjt', label: 'BJT Transistor', icon: <ChevronRight size={16} className="rotate-90" />, desc: 'NPN active transistor' },
+    ]
+  },
+  {
+    id: 'digital',
+    name: 'Digital Logic',
+    isOpen: true,
+    items: [
+      { mode: 'and', label: 'AND Gate', icon: <Cpu size={16} />, desc: 'Logical AND gate' },
+      { mode: 'or', label: 'OR Gate', icon: <Cpu size={16} />, desc: 'Logical OR gate' },
+      { mode: 'not', label: 'NOT Gate', icon: <Cpu size={16} />, desc: 'Logical NOT gate' },
     ]
   }
 ];

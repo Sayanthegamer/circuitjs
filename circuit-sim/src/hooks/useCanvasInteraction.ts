@@ -12,6 +12,10 @@ import {
   SwitchElement,
   DiodeElement,
   LEDElement,
+  BJTElement,
+  CurrentSourceElement,
+  LogicGateElement,
+  MutualCouplingElement,
 } from '../engine';
 import { GRID_SIZE } from '../renderer/grid';
 
@@ -406,6 +410,24 @@ export function useCanvasInteraction(
           break;
         case 'voltage':
           newElm = new VoltageSourceElement(placing.x1, placing.y1, x2, y2, 5);
+          break;
+        case 'bjt':
+          newElm = new BJTElement(placing.x1, placing.y1, x2, y2, true);
+          break;
+        case 'current_source':
+          newElm = new CurrentSourceElement(placing.x1, placing.y1, x2, y2, 0.002);
+          break;
+        case 'mutual':
+          newElm = new MutualCouplingElement(placing.x1, placing.y1, x2, y2);
+          break;
+        case 'and':
+          newElm = new LogicGateElement(placing.x1, placing.y1, x2, y2, 'AND');
+          break;
+        case 'or':
+          newElm = new LogicGateElement(placing.x1, placing.y1, x2, y2, 'OR');
+          break;
+        case 'not':
+          newElm = new LogicGateElement(placing.x1, placing.y1, x2, y2, 'NOT');
           break;
       }
 

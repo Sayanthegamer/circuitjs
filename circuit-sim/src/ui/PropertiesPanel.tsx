@@ -50,6 +50,36 @@ function PropertiesPanelInner({
   const [inductanceStr, setInductanceStr] = useState(() =>
     selectedElm.type === 'inductor' ? (selectedElm as InductorElement).inductance.toString() : ''
   );
+  const [bfStr, setBfStr] = useState(() =>
+    selectedElm.type === 'bjt' ? (selectedElm as any).bf.toString() : '100'
+  );
+  const [isNpnState, setIsNpnState] = useState(() =>
+    selectedElm.type === 'bjt' ? (selectedElm as any).isNpn : true
+  );
+  const [currentValueStr, setCurrentValueStr] = useState(() =>
+    selectedElm.type === 'current_source' ? (selectedElm as any).currentValue.toString() : ''
+  );
+  const [vHighStr, setVHighStr] = useState(() =>
+    selectedElm.type === 'logic_gate' ? (selectedElm as any).vHigh.toString() : '5.0'
+  );
+  const [vLowStr, setVLowStr] = useState(() =>
+    selectedElm.type === 'logic_gate' ? (selectedElm as any).vLow.toString() : '0.0'
+  );
+  const [vThresholdStr, setVThresholdStr] = useState(() =>
+    selectedElm.type === 'logic_gate' ? (selectedElm as any).vThreshold.toString() : '2.5'
+  );
+  const [propagationDelayStr, setPropagationDelayStr] = useState(() =>
+    selectedElm.type === 'logic_gate' ? (selectedElm as any).propagationDelay.toString() : '1e-6'
+  );
+  const [couplingCoefficientStr, setCouplingCoefficientStr] = useState(() =>
+    selectedElm.type === 'mutual' ? (selectedElm as any).couplingCoefficient.toString() : '0.99'
+  );
+  const [ind1IdState, setInd1IdState] = useState(() =>
+    selectedElm.type === 'mutual' ? (selectedElm as any).ind1Id : ''
+  );
+  const [ind2IdState, setInd2IdState] = useState(() =>
+    selectedElm.type === 'mutual' ? (selectedElm as any).ind2Id : ''
+  );
 
   const isProbed = (prop: 'V1' | 'V2' | 'I' | 'Vdiff') =>
     probedItems.some(p => p.elmId === selectedElm.id && p.prop === prop);
@@ -70,7 +100,10 @@ function PropertiesPanelInner({
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handlePropChange = (prop: 'resistance' | 'voltage' | 'capacitance' | 'inductance' | 'closed' | 'waveform' | 'frequency', value: any) => {
+  const handlePropChange = (
+    prop: 'resistance' | 'voltage' | 'capacitance' | 'inductance' | 'closed' | 'waveform' | 'frequency' | 'bf' | 'isNpn' | 'currentValue' | 'vHigh' | 'vLow' | 'vThreshold' | 'propagationDelay' | 'couplingCoefficient' | 'ind1Id' | 'ind2Id',
+    value: any
+  ) => {
     const { pushHistory, saveToLocalStorage } = useCircuitStore.getState();
     pushHistory();
 
@@ -91,6 +124,26 @@ function PropertiesPanelInner({
       (selectedElm as InductorElement).inductance = value;
     } else if (selectedElm.type === 'switch' && prop === 'closed') {
       (selectedElm as SwitchElement).closed = value === 1;
+    } else if (selectedElm.type === 'bjt' && prop === 'bf') {
+      (selectedElm as any).bf = value;
+    } else if (selectedElm.type === 'bjt' && prop === 'isNpn') {
+      (selectedElm as any).isNpn = value;
+    } else if (selectedElm.type === 'current_source' && prop === 'currentValue') {
+      (selectedElm as any).currentValue = value;
+    } else if (selectedElm.type === 'logic_gate' && prop === 'vHigh') {
+      (selectedElm as any).vHigh = value;
+    } else if (selectedElm.type === 'logic_gate' && prop === 'vLow') {
+      (selectedElm as any).vLow = value;
+    } else if (selectedElm.type === 'logic_gate' && prop === 'vThreshold') {
+      (selectedElm as any).vThreshold = value;
+    } else if (selectedElm.type === 'logic_gate' && prop === 'propagationDelay') {
+      (selectedElm as any).propagationDelay = value;
+    } else if (selectedElm.type === 'mutual' && prop === 'couplingCoefficient') {
+      (selectedElm as any).couplingCoefficient = value;
+    } else if (selectedElm.type === 'mutual' && prop === 'ind1Id') {
+      (selectedElm as any).ind1Id = value;
+    } else if (selectedElm.type === 'mutual' && prop === 'ind2Id') {
+      (selectedElm as any).ind2Id = value;
     }
     circuit.analyzeCircuit();
     saveToLocalStorage();
@@ -104,6 +157,26 @@ function PropertiesPanelInner({
       handlePropChange('resistance', val);
       setResistanceStr(val.toString());
     }
+  };
+
+  const commitCouplingCoefficient = () => {
+    let val = parseFloat(couplingCoefficientStr);
+    if (isNaN(val)) {
+      setCouplingCoefficientStr((selectedElm as any).couplingCoefficient.toString());
+    } else {
+      val = Math.min(0.99999, Math.max(-0.99999, val));
+      handlePropChange('couplingCoefficient', val);
+      setCouplingCoefficientStr(val.toString());
+    }
+  };
+
+  const handleIndChange = (prop: 'ind1Id' | 'ind2Id', val: string) => {
+    if (prop === 'ind1Id') {
+      setInd1IdState(val);
+    } else {
+      setInd2IdState(val);
+    }
+    handlePropChange(prop, val);
   };
 
 
@@ -149,6 +222,66 @@ function PropertiesPanelInner({
     } else {
       handlePropChange('inductance', val);
       setInductanceStr(val.toString());
+    }
+  };
+
+  const commitBf = () => {
+    const val = parseFloat(bfStr);
+    if (isNaN(val) || val <= 0) {
+      setBfStr((selectedElm as any).bf.toString());
+    } else {
+      handlePropChange('bf', val);
+      setBfStr(val.toString());
+    }
+  };
+
+  const commitCurrentValue = () => {
+    const val = parseFloat(currentValueStr);
+    if (isNaN(val)) {
+      setCurrentValueStr((selectedElm as any).currentValue.toString());
+    } else {
+      handlePropChange('currentValue', val);
+      setCurrentValueStr(val.toString());
+    }
+  };
+
+  const commitVHigh = () => {
+    const val = parseFloat(vHighStr);
+    if (isNaN(val)) {
+      setVHighStr((selectedElm as any).vHigh.toString());
+    } else {
+      handlePropChange('vHigh', val);
+      setVHighStr(val.toString());
+    }
+  };
+
+  const commitVLow = () => {
+    const val = parseFloat(vLowStr);
+    if (isNaN(val)) {
+      setVLowStr((selectedElm as any).vLow.toString());
+    } else {
+      handlePropChange('vLow', val);
+      setVLowStr(val.toString());
+    }
+  };
+
+  const commitVThreshold = () => {
+    const val = parseFloat(vThresholdStr);
+    if (isNaN(val)) {
+      setVThresholdStr((selectedElm as any).vThreshold.toString());
+    } else {
+      handlePropChange('vThreshold', val);
+      setVThresholdStr(val.toString());
+    }
+  };
+
+  const commitPropagationDelay = () => {
+    const val = parseFloat(propagationDelayStr);
+    if (isNaN(val) || val < 0) {
+      setPropagationDelayStr((selectedElm as any).propagationDelay.toString());
+    } else {
+      handlePropChange('propagationDelay', val);
+      setPropagationDelayStr(val.toString());
     }
   };
 
@@ -353,6 +486,223 @@ function PropertiesPanelInner({
                 </button>
               </div>
             )}
+
+            {selectedElm.type === 'bjt' && (
+              <>
+                {/* Type Toggle */}
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Transistor Type
+                  </label>
+                  <div className="flex border border-border-hairline bg-surface-dim">
+                    <button
+                      className={`flex-1 py-1.5 text-xs font-mono transition-all cursor-pointer focus:outline-none ${isNpnState ? 'bg-primary text-white font-bold' : 'text-text-secondary hover:bg-surface-bright/35'}`}
+                      onClick={() => {
+                        handlePropChange('isNpn', true);
+                        setIsNpnState(true);
+                      }}
+                    >
+                      NPN
+                    </button>
+                    <button
+                      className={`flex-1 py-1.5 text-xs font-mono transition-all cursor-pointer focus:outline-none ${!isNpnState ? 'bg-primary text-white font-bold' : 'text-text-secondary hover:bg-surface-bright/35'}`}
+                      onClick={() => {
+                        handlePropChange('isNpn', false);
+                        setIsNpnState(false);
+                      }}
+                    >
+                      PNP
+                    </button>
+                  </div>
+                </div>
+
+                {/* Beta Input */}
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Forward Beta (β)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={bfStr}
+                      onChange={(e) => setBfStr(e.target.value)}
+                      onBlur={commitBf}
+                      onKeyDown={(e) => handleKeyDown(e, commitBf)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {selectedElm.type === 'current_source' && (
+              <div className="space-y-1.5 group">
+                <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                  Current Output
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={currentValueStr}
+                    onChange={(e) => setCurrentValueStr(e.target.value)}
+                    onBlur={commitCurrentValue}
+                    onKeyDown={(e) => handleKeyDown(e, commitCurrentValue)}
+                    className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                    A
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {selectedElm.type === 'mutual' && (() => {
+              const inductors = circuit.elements.filter(elm => elm.type === 'inductor');
+              return (
+                <>
+                  <div className="space-y-1.5 group">
+                    <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                      Coupling Coefficient (k)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={couplingCoefficientStr}
+                        onChange={(e) => setCouplingCoefficientStr(e.target.value)}
+                        onBlur={commitCouplingCoefficient}
+                        onKeyDown={(e) => handleKeyDown(e, commitCouplingCoefficient)}
+                        className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 group">
+                    <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                      Inductor 1
+                    </label>
+                    <select
+                      value={ind1IdState}
+                      onChange={(e) => handleIndChange('ind1Id', e.target.value)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all text-text-primary"
+                    >
+                      <option value="">(None)</option>
+                      {inductors.map((ind) => (
+                        <option key={ind.id} value={ind.id}>
+                          Inductor {ind.id.slice(0, 4)} ({ind.x},{ind.y})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5 group">
+                    <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                      Inductor 2
+                    </label>
+                    <select
+                      value={ind2IdState}
+                      onChange={(e) => handleIndChange('ind2Id', e.target.value)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all text-text-primary"
+                    >
+                      <option value="">(None)</option>
+                      {inductors.map((ind) => (
+                        <option key={ind.id} value={ind.id}>
+                          Inductor {ind.id.slice(0, 4)} ({ind.x},{ind.y})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              );
+            })()}
+
+            {selectedElm.type === 'logic_gate' && (
+              <>
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Gate Type
+                  </label>
+                  <div className="font-mono text-xs text-text-secondary bg-surface-bright/35 px-3 py-2 border border-border-hairline">
+                    {(selectedElm as any).gateType}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Logic High (V_high)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={vHighStr}
+                      onChange={(e) => setVHighStr(e.target.value)}
+                      onBlur={commitVHigh}
+                      onKeyDown={(e) => handleKeyDown(e, commitVHigh)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                      V
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Logic Low (V_low)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={vLowStr}
+                      onChange={(e) => setVLowStr(e.target.value)}
+                      onBlur={commitVLow}
+                      onKeyDown={(e) => handleKeyDown(e, commitVLow)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                      V
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Input Threshold (V_th)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={vThresholdStr}
+                      onChange={(e) => setVThresholdStr(e.target.value)}
+                      onBlur={commitVThreshold}
+                      onKeyDown={(e) => handleKeyDown(e, commitVThreshold)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                      V
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Propagation Delay
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={propagationDelayStr}
+                      onChange={(e) => setPropagationDelayStr(e.target.value)}
+                      onBlur={commitPropagationDelay}
+                      onKeyDown={(e) => handleKeyDown(e, commitPropagationDelay)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                      s
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </section>
 
@@ -367,108 +717,184 @@ function PropertiesPanelInner({
           </div>
 
           <div className="grid gap-2.5">
-            {/* V1 Readout */}
-            <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[8px] text-text-muted uppercase font-bold">Node V₁</span>
-                <button
-                  onClick={() => toggleProbe('V1')}
-                  className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                    isProbed('V1') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
-                  }`}
-                >
-                  <i className="material-icons text-[10px]">
-                    {isProbed('V1') ? 'check_circle' : 'add_circle_outline'}
-                  </i>
-                  {isProbed('V1') ? 'Probed' : 'Probe'}
-                </button>
-              </div>
-              <span
-                className="font-mono text-xs font-bold tabular-nums"
-                style={{ color: voltageToColor(selectedElm.volts[0] || 0) }}
-              >
-                {(selectedElm.volts[0] || 0).toFixed(3)} V
-              </span>
-            </div>
-
-            {selectedElm.getPostCount() > 1 && (
+            {selectedElm.type === 'bjt' && (
               <>
-                {/* V2 Readout */}
-                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[8px] text-text-muted uppercase font-bold">Node V₂</span>
-                    <button
-                      onClick={() => toggleProbe('V2')}
-                      className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                        isProbed('V2') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
-                      }`}
-                    >
-                      <i className="material-icons text-[10px]">
-                        {isProbed('V2') ? 'check_circle' : 'add_circle_outline'}
-                      </i>
-                      {isProbed('V2') ? 'Probed' : 'Probe'}
-                    </button>
-                  </div>
-                  <span
-                    className="font-mono text-xs font-bold tabular-nums"
-                    style={{ color: voltageToColor(selectedElm.volts[1] || 0) }}
-                  >
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
+                  <span className="text-[8px] text-text-muted uppercase font-bold">Collector (V_c)</span>
+                  <span className="font-mono text-xs font-bold tabular-nums" style={{ color: voltageToColor(selectedElm.volts[0] || 0) }}>
+                    {(selectedElm.volts[0] || 0).toFixed(3)} V
+                  </span>
+                </div>
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
+                  <span className="text-[8px] text-text-muted uppercase font-bold">Base (V_b)</span>
+                  <span className="font-mono text-xs font-bold tabular-nums" style={{ color: voltageToColor(selectedElm.volts[1] || 0) }}>
                     {(selectedElm.volts[1] || 0).toFixed(3)} V
                   </span>
                 </div>
-
-                {/* Vdiff Readout */}
-                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[8px] text-text-muted uppercase font-bold">ΔV (V_drop)</span>
-                    <button
-                      onClick={() => toggleProbe('Vdiff')}
-                      className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                        isProbed('Vdiff') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
-                      }`}
-                    >
-                      <i className="material-icons text-[10px]">
-                        {isProbed('Vdiff') ? 'check_circle' : 'add_circle_outline'}
-                      </i>
-                      {isProbed('Vdiff') ? 'Probed' : 'Probe'}
-                    </button>
-                  </div>
-                  <span
-                    className="font-mono text-xs font-bold tabular-nums"
-                    style={{ color: voltageToColor(selectedElm.getVoltageDiff()) }}
-                  >
-                    {selectedElm.getVoltageDiff().toFixed(3)} V
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
+                  <span className="text-[8px] text-text-muted uppercase font-bold">Emitter (V_e)</span>
+                  <span className="font-mono text-xs font-bold tabular-nums" style={{ color: voltageToColor(selectedElm.volts[2] || 0) }}>
+                    {(selectedElm.volts[2] || 0).toFixed(3)} V
                   </span>
                 </div>
-
-                {/* Current Readout */}
-                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[8px] text-text-muted uppercase font-bold">Current (I)</span>
-                    <button
-                      onClick={() => toggleProbe('I')}
-                      className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                        isProbed('I') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
-                      }`}
-                    >
-                      <i className="material-icons text-[10px]">
-                        {isProbed('I') ? 'check_circle' : 'add_circle_outline'}
-                      </i>
-                      {isProbed('I') ? 'Probed' : 'Probe'}
-                    </button>
-                  </div>
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
+                  <span className="text-[8px] text-text-muted uppercase font-bold">V_be / V_bc</span>
+                  <span className="font-mono text-xs text-text-secondary font-bold tabular-nums">
+                    {((selectedElm.volts[1] || 0) - (selectedElm.volts[2] || 0)).toFixed(3)} V / {((selectedElm.volts[1] || 0) - (selectedElm.volts[0] || 0)).toFixed(3)} V
+                  </span>
+                </div>
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
+                  <span className="text-[8px] text-text-muted uppercase font-bold">Collector Current (I_c)</span>
                   <span className="font-mono text-xs text-instrument-current font-bold tabular-nums">
                     {(selectedElm.getCurrent() * 1000).toFixed(4)} mA
                   </span>
                 </div>
-
-                {/* Power Readout */}
                 <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
-                  <span className="text-[8px] text-text-muted uppercase font-bold">Power Dissipation</span>
-                  <span className="font-mono text-xs text-text-primary font-bold tabular-nums">
-                    {Math.abs(selectedElm.getVoltageDiff() * selectedElm.getCurrent() * 1000).toFixed(2)} mW
+                  <span className="text-[8px] text-text-muted uppercase font-bold">Base Current (I_b)</span>
+                  <span className="font-mono text-xs text-instrument-current font-bold tabular-nums">
+                    {((selectedElm as any).getCurrentIntoNode(1) * 1000).toFixed(4)} mA
                   </span>
                 </div>
+              </>
+            )}
+
+            {selectedElm.type === 'logic_gate' && (
+              <>
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
+                  <span className="text-[8px] text-text-muted uppercase font-bold">Input 1 (V_in1)</span>
+                  <span className="font-mono text-xs font-bold tabular-nums" style={{ color: voltageToColor(selectedElm.volts[0] || 0) }}>
+                    {(selectedElm.volts[0] || 0).toFixed(3)} V ({selectedElm.volts[0] >= (selectedElm as any).vThreshold ? 'HIGH' : 'LOW'})
+                  </span>
+                </div>
+                {(selectedElm as any).gateType !== 'NOT' && (
+                  <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
+                    <span className="text-[8px] text-text-muted uppercase font-bold">Input 2 (V_in2)</span>
+                    <span className="font-mono text-xs font-bold tabular-nums" style={{ color: voltageToColor(selectedElm.volts[1] || 0) }}>
+                      {(selectedElm.volts[1] || 0).toFixed(3)} V ({selectedElm.volts[1] >= (selectedElm as any).vThreshold ? 'HIGH' : 'LOW'})
+                    </span>
+                  </div>
+                )}
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
+                  <span className="text-[8px] text-text-muted uppercase font-bold">Output (V_out)</span>
+                  <span className="font-mono text-xs font-bold tabular-nums" style={{ color: voltageToColor((selectedElm as any).lastOutVal) }}>
+                    {((selectedElm as any).lastOutVal).toFixed(3)} V
+                  </span>
+                </div>
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
+                  <span className="text-[8px] text-text-muted uppercase font-bold">Output Current</span>
+                  <span className="font-mono text-xs text-instrument-current font-bold tabular-nums">
+                    {(selectedElm.getCurrent() * 1000).toFixed(4)} mA
+                  </span>
+                </div>
+              </>
+            )}
+
+            {selectedElm.type !== 'bjt' && selectedElm.type !== 'logic_gate' && (
+              <>
+                {/* V1 Readout */}
+                <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[8px] text-text-muted uppercase font-bold">Node V₁</span>
+                    <button
+                      onClick={() => toggleProbe('V1')}
+                      className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                        isProbed('V1') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
+                      }`}
+                    >
+                      <i className="material-icons text-[10px]">
+                        {isProbed('V1') ? 'check_circle' : 'add_circle_outline'}
+                      </i>
+                      {isProbed('V1') ? 'Probed' : 'Probe'}
+                    </button>
+                  </div>
+                  <span
+                    className="font-mono text-xs font-bold tabular-nums"
+                    style={{ color: voltageToColor(selectedElm.volts[0] || 0) }}
+                  >
+                    {(selectedElm.volts[0] || 0).toFixed(3)} V
+                  </span>
+                </div>
+
+                {selectedElm.getPostCount() > 1 && (
+                  <>
+                    {/* V2 Readout */}
+                    <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[8px] text-text-muted uppercase font-bold">Node V₂</span>
+                        <button
+                          onClick={() => toggleProbe('V2')}
+                          className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                            isProbed('V2') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
+                          }`}
+                        >
+                          <i className="material-icons text-[10px]">
+                            {isProbed('V2') ? 'check_circle' : 'add_circle_outline'}
+                          </i>
+                          {isProbed('V2') ? 'Probed' : 'Probe'}
+                        </button>
+                      </div>
+                      <span
+                        className="font-mono text-xs font-bold tabular-nums"
+                        style={{ color: voltageToColor(selectedElm.volts[1] || 0) }}
+                      >
+                        {(selectedElm.volts[1] || 0).toFixed(3)} V
+                      </span>
+                    </div>
+
+                    {/* Vdiff Readout */}
+                    <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[8px] text-text-muted uppercase font-bold">ΔV (V_drop)</span>
+                        <button
+                          onClick={() => toggleProbe('Vdiff')}
+                          className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                            isProbed('Vdiff') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
+                          }`}
+                        >
+                          <i className="material-icons text-[10px]">
+                            {isProbed('Vdiff') ? 'check_circle' : 'add_circle_outline'}
+                          </i>
+                          {isProbed('Vdiff') ? 'Probed' : 'Probe'}
+                        </button>
+                      </div>
+                      <span
+                        className="font-mono text-xs font-bold tabular-nums"
+                        style={{ color: voltageToColor(selectedElm.getVoltageDiff()) }}
+                      >
+                        {selectedElm.getVoltageDiff().toFixed(3)} V
+                      </span>
+                    </div>
+
+                    {/* Current Readout */}
+                    <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center group hover:border-primary/30 transition-colors">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[8px] text-text-muted uppercase font-bold">Current (I)</span>
+                        <button
+                          onClick={() => toggleProbe('I')}
+                          className={`text-[8px] uppercase font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                            isProbed('I') ? 'text-primary' : 'text-text-muted hover:text-text-secondary'
+                          }`}
+                        >
+                          <i className="material-icons text-[10px]">
+                            {isProbed('I') ? 'check_circle' : 'add_circle_outline'}
+                          </i>
+                          {isProbed('I') ? 'Probed' : 'Probe'}
+                        </button>
+                      </div>
+                      <span className="font-mono text-xs text-instrument-current font-bold tabular-nums">
+                        {(selectedElm.getCurrent() * 1000).toFixed(4)} mA
+                      </span>
+                    </div>
+
+                    {/* Power Readout */}
+                    <div className="bg-surface-dim border border-border-hairline p-2.5 flex justify-between items-center">
+                      <span className="text-[8px] text-text-muted uppercase font-bold">Power Dissipation</span>
+                      <span className="font-mono text-xs text-text-primary font-bold tabular-nums">
+                        {Math.abs(selectedElm.getVoltageDiff() * selectedElm.getCurrent() * 1000).toFixed(2)} mW
+                      </span>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
