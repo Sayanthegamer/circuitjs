@@ -75,6 +75,15 @@ function App() {
       params.set('view', viewMode);
       window.history.pushState(null, '', `?${params.toString()}${window.location.hash}`);
     }
+
+    // Dynamically update the canonical link to match the active view parameter
+    let canonicalLink = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.rel = 'canonical';
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.href = `https://circuitjs.vercel.app/?view=${viewMode}`;
   }, [viewMode]);
 
   // Handle hash scrolling on page load/view switch for the whitepaper documentation
