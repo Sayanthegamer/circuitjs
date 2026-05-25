@@ -28,8 +28,11 @@ export const MobileToolbar: React.FC = () => {
   const setViewMode = useUIStore((s) => s.setViewMode);
   const mobileMenuOpen = useUIStore((s) => s.mobileMenuOpen);
   const setMobileMenuOpen = useUIStore((s) => s.setMobileMenuOpen);
-  const setMobilePaletteOpen = useUIStore((s) => s.setMobilePaletteOpen);
-  const setMobilePropertiesOpen = useUIStore((s) => s.setMobilePropertiesOpen);
+
+  const activeMobileTab = useUIStore((s) => s.activeMobileTab);
+  const setActiveMobileTab = useUIStore((s) => s.setActiveMobileTab);
+  const mobileDockHeight = useUIStore((s) => s.mobileDockHeight);
+  const setMobileDockHeight = useUIStore((s) => s.setMobileDockHeight);
 
   const simRunning = useCircuitStore((s) => s.simRunning);
   const setSimRunning = useCircuitStore((s) => s.setSimRunning);
@@ -93,6 +96,24 @@ export const MobileToolbar: React.FC = () => {
     setTool(mode);
   };
 
+  const handleToggleProperties = () => {
+    if (activeMobileTab === 'properties' && mobileDockHeight !== 'collapsed') {
+      setMobileDockHeight('collapsed');
+    } else {
+      setActiveMobileTab('properties');
+      setMobileDockHeight('medium');
+    }
+  };
+
+  const handleTogglePalette = () => {
+    if (activeMobileTab === 'palette' && mobileDockHeight !== 'collapsed') {
+      setMobileDockHeight('collapsed');
+    } else {
+      setActiveMobileTab('palette');
+      setMobileDockHeight('medium');
+    }
+  };
+
   // Quick tool buttons for the toolbar
   const quickTools: { mode: ToolMode; label: string }[] = [
     { mode: 'select', label: 'S' },
@@ -110,7 +131,7 @@ export const MobileToolbar: React.FC = () => {
           {/* Hamburger Menu */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-text-secondary hover:text-text-primary transition-colors"
+            className="p-2 text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
             aria-label="Menu"
           >
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -122,7 +143,7 @@ export const MobileToolbar: React.FC = () => {
               <button
                 key={mode}
                 onClick={() => handleSelectTool(mode)}
-                className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center transition-all focus:outline-none rounded-none ${
+                className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center transition-all focus:outline-none rounded-none cursor-pointer ${
                   tool === mode
                     ? 'bg-surface-bright text-primary'
                     : 'text-text-secondary hover:bg-surface-bright/50'
@@ -147,8 +168,8 @@ export const MobileToolbar: React.FC = () => {
         <div className="flex items-center gap-2">
           {/* Properties button */}
           <button
-            onClick={() => setMobilePropertiesOpen(true)}
-            className={`p-2 transition-colors ${selectedId ? 'text-primary' : 'text-text-muted hover:text-text-secondary'}`}
+            onClick={handleToggleProperties}
+            className={`p-2 transition-colors cursor-pointer ${selectedId ? 'text-primary' : 'text-text-muted hover:text-text-secondary'}`}
             title="Properties"
           >
             <List size={18} />
@@ -157,7 +178,7 @@ export const MobileToolbar: React.FC = () => {
           {/* Play/Pause */}
           <button
             onClick={() => setSimRunning(!simRunning)}
-            className={`p-2 transition-colors ${simRunning ? 'text-instrument-current' : 'text-text-secondary hover:text-text-primary'}`}
+            className={`p-2 transition-colors cursor-pointer ${simRunning ? 'text-instrument-current' : 'text-text-secondary hover:text-text-primary'}`}
             title={simRunning ? 'Pause' : 'Play'}
           >
             {simRunning ? <Pause size={18} /> : <Play size={18} />}
@@ -165,8 +186,8 @@ export const MobileToolbar: React.FC = () => {
 
           {/* Add Component */}
           <button
-            onClick={() => setMobilePaletteOpen(true)}
-            className="p-2 bg-primary text-white hover:bg-primary/90 transition-colors"
+            onClick={handleTogglePalette}
+            className="p-2 bg-primary text-white hover:bg-primary/95 transition-colors cursor-pointer"
             title="Add Component"
           >
             <Plus size={18} />

@@ -38,6 +38,10 @@ interface UIState {
   mobilePropertiesOpen: boolean;
   mobileMenuOpen: boolean;
 
+  // Mobile Unified Bottom Dock state
+  activeMobileTab: 'palette' | 'properties' | 'scope' | 'solver';
+  mobileDockHeight: 'collapsed' | 'medium' | 'expanded';
+
   // Actions
   setTool: (t: ToolMode) => void;
   setSelectedId: (id: string | null) => void;
@@ -52,6 +56,8 @@ interface UIState {
   setMobilePaletteOpen: (open: boolean) => void;
   setMobilePropertiesOpen: (open: boolean) => void;
   setMobileMenuOpen: (open: boolean) => void;
+  setActiveMobileTab: (tab: 'palette' | 'properties' | 'scope' | 'solver') => void;
+  setMobileDockHeight: (height: 'collapsed' | 'medium' | 'expanded') => void;
 }
 
 export const lastMousePos = { x: 0, y: 0 };
@@ -72,9 +78,20 @@ export const useUIStore = create<UIState>((set) => ({
   mobilePaletteOpen: false,
   mobilePropertiesOpen: false,
   mobileMenuOpen: false,
+  
+  activeMobileTab: 'palette',
+  mobileDockHeight: 'collapsed',
 
   setTool: (t) => set({ tool: t }),
-  setSelectedId: (id) => set({ selectedId: id }),
+  setSelectedId: (id) => set(() => {
+    // Auto-open Properties tab when selecting an element on mobile
+    const updates: Partial<UIState> = { selectedId: id };
+    if (id) {
+      updates.activeMobileTab = 'properties';
+      updates.mobileDockHeight = 'medium';
+    }
+    return updates;
+  }),
   setPlacing: (p) => set({ placing: p }),
   setViewMode: (m) => set({ viewMode: m }),
   setShowValues: (s) => set({ showValues: s }),
@@ -86,4 +103,6 @@ export const useUIStore = create<UIState>((set) => ({
   setMobilePaletteOpen: (open) => set({ mobilePaletteOpen: open }),
   setMobilePropertiesOpen: (open) => set({ mobilePropertiesOpen: open }),
   setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
+  setActiveMobileTab: (tab) => set({ activeMobileTab: tab }),
+  setMobileDockHeight: (height) => set({ mobileDockHeight: height }),
 }));

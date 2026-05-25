@@ -51,6 +51,60 @@ function PropertiesPanelInner({
     selectedElm.type === 'inductor' ? (selectedElm as InductorElement).inductance.toString() : ''
   );
 
+  // --- Math Utilities for Logarithmic Sliders ---
+  const mapLogToVal = (x: number, minLog: number, maxLog: number): number => {
+    return Math.pow(10, minLog + x * (maxLog - minLog));
+  };
+
+  const mapValToLog = (val: number, minLog: number, maxLog: number): number => {
+    if (val <= 0) return 0;
+    return (Math.log10(val) - minLog) / (maxLog - minLog);
+  };
+
+  // --- Stepper Adjustment Helpers ---
+  const adjustResistor = (multiplier: number) => {
+    const val = (selectedElm as ResistorElement).resistance * multiplier;
+    if (val > 0 && val <= 1e8) {
+      const rounded = parseFloat(val.toPrecision(3));
+      setResistanceStr(rounded.toString());
+      handlePropChange('resistance', rounded);
+    }
+  };
+
+  const adjustCapacitor = (multiplier: number) => {
+    const val = (selectedElm as CapacitorElement).capacitance * multiplier;
+    if (val > 0 && val <= 10) {
+      const rounded = parseFloat(val.toPrecision(3));
+      setCapacitanceStr(rounded.toString());
+      handlePropChange('capacitance', rounded);
+    }
+  };
+
+  const adjustInductor = (multiplier: number) => {
+    const val = (selectedElm as InductorElement).inductance * multiplier;
+    if (val > 0 && val <= 1000) {
+      const rounded = parseFloat(val.toPrecision(3));
+      setInductanceStr(rounded.toString());
+      handlePropChange('inductance', rounded);
+    }
+  };
+
+  const adjustVoltage = (offset: number) => {
+    const val = (selectedElm as VoltageSourceElement).maxVoltage + offset;
+    const rounded = parseFloat(val.toFixed(2));
+    setVoltageStr(rounded.toString());
+    handlePropChange('voltage', rounded);
+  };
+
+  const adjustFrequency = (offset: number) => {
+    const val = (selectedElm as VoltageSourceElement).frequency + offset;
+    if (val > 0) {
+      const rounded = parseFloat(val.toFixed(2));
+      setFrequencyStr(rounded.toString());
+      handlePropChange('frequency', rounded);
+    }
+  };
+
   const isProbed = (prop: 'V1' | 'V2' | 'I' | 'Vdiff') =>
     probedItems.some(p => p.elmId === selectedElm.id && p.prop === prop);
 
@@ -203,7 +257,7 @@ function PropertiesPanelInner({
 
           <div className="space-y-4">
             {selectedElm.type === 'resistor' && (
-              <div className="space-y-1.5 group">
+              <div className="space-y-2 group">
                 <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
                   Resistance
                 </label>
@@ -220,11 +274,56 @@ function PropertiesPanelInner({
                     Ω
                   </span>
                 </div>
+                {/* Steppers */}
+                <div className="flex gap-1">
+                  <button onClick={() => adjustResistor(0.9)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">-10%</button>
+                  <button onClick={() => adjustResistor(0.5)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">/2</button>
+                  <button onClick={() => adjustResistor(2)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">×2</button>
+                  <button onClick={() => adjustResistor(1.1)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">+10%</button>
+                </div>
+                {/* Presets */}
+                <div className="flex flex-wrap gap-1">
+                  {[10, 100, 220, 1000, 2200, 10000, 47000, 100000, 1000000].map(pVal => {
+                    const label = pVal >= 1e6 ? `${pVal/1e6}M` : pVal >= 1000 ? `${pVal/1000}k` : `${pVal}`;
+                    const active = Math.abs((selectedElm as ResistorElement).resistance - pVal) < 1e-9;
+                    return (
+                      <button
+                        key={pVal}
+                        onClick={() => {
+                          setResistanceStr(pVal.toString());
+                          handlePropChange('resistance', pVal);
+                        }}
+                        className={`px-2 py-0.5 border text-[9px] font-mono cursor-pointer transition-all active:scale-90 ${
+                          active ? 'border-primary text-primary font-bold bg-primary/10' : 'border-border-hairline bg-surface-dim text-text-muted hover:text-text-secondary'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Logarithmic Slider */}
+                <div className="pt-1 flex items-center">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.001"
+                    value={mapValToLog((selectedElm as ResistorElement).resistance, 0, 7)}
+                    onChange={(e) => {
+                      const logVal = parseFloat(e.target.value);
+                      const mapped = mapLogToVal(logVal, 0, 7);
+                      const val = parseFloat(mapped.toPrecision(3));
+                      setResistanceStr(val.toString());
+                      handlePropChange('resistance', val);
+                    }}
+                    className="w-full accent-primary bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
+                  />
+                </div>
               </div>
             )}
 
             {selectedElm.type === 'voltage' && (
-
               <>
                 {/* Waveform Toggle */}
                 <div className="space-y-1.5 group">
@@ -233,13 +332,13 @@ function PropertiesPanelInner({
                   </label>
                   <div className="flex border border-border-hairline">
                     <button
-                      className={`flex-1 py-1.5 text-xs font-mono transition-colors ${waveformStr === 'DC' ? 'bg-primary text-white font-bold' : 'bg-surface-dim text-text-secondary hover:bg-surface-bright'}`}
+                      className={`flex-1 py-1.5 text-xs font-mono transition-colors cursor-pointer ${waveformStr === 'DC' ? 'bg-primary text-white font-bold' : 'bg-surface-dim text-text-secondary hover:bg-surface-bright'}`}
                       onClick={() => commitWaveform('DC')}
                     >
                       DC
                     </button>
                     <button
-                      className={`flex-1 py-1.5 text-xs font-mono transition-colors ${waveformStr === 'AC' ? 'bg-primary text-white font-bold' : 'bg-surface-dim text-text-secondary hover:bg-surface-bright'}`}
+                      className={`flex-1 py-1.5 text-xs font-mono transition-colors cursor-pointer ${waveformStr === 'AC' ? 'bg-primary text-white font-bold' : 'bg-surface-dim text-text-secondary hover:bg-surface-bright'}`}
                       onClick={() => commitWaveform('AC')}
                     >
                       AC
@@ -248,7 +347,7 @@ function PropertiesPanelInner({
                 </div>
 
                 {/* Max Voltage Input */}
-                <div className="space-y-1.5 group">
+                <div className="space-y-2 group">
                   <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
                     {waveformStr === 'AC' ? 'Peak Voltage' : 'Voltage'}
                   </label>
@@ -265,11 +364,54 @@ function PropertiesPanelInner({
                       V
                     </span>
                   </div>
+                  {/* Steppers */}
+                  <div className="flex gap-1">
+                    <button onClick={() => adjustVoltage(-1)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">-1V</button>
+                    <button onClick={() => adjustVoltage(-0.1)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">-0.1V</button>
+                    <button onClick={() => adjustVoltage(0.1)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">+0.1V</button>
+                    <button onClick={() => adjustVoltage(1)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">+1V</button>
+                  </div>
+                  {/* Presets */}
+                  <div className="flex flex-wrap gap-1">
+                    {[-12, -5, 0, 1.5, 3.3, 5, 9, 12, 24].map(pVal => {
+                      const active = Math.abs((selectedElm as VoltageSourceElement).maxVoltage - pVal) < 1e-9;
+                      return (
+                        <button
+                          key={pVal}
+                          onClick={() => {
+                            setVoltageStr(pVal.toString());
+                            handlePropChange('voltage', pVal);
+                          }}
+                          className={`px-2 py-0.5 border text-[9px] font-mono cursor-pointer transition-all active:scale-90 ${
+                            active ? 'border-primary text-primary font-bold bg-primary/10' : 'border-border-hairline bg-surface-dim text-text-muted hover:text-text-secondary'
+                          }`}
+                        >
+                          {pVal > 0 ? `+${pVal}V` : `${pVal}V`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Linear Slider */}
+                  <div className="pt-1 flex items-center">
+                    <input
+                      type="range"
+                      min="-24"
+                      max="24"
+                      step="0.1"
+                      value={(selectedElm as VoltageSourceElement).maxVoltage}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setVoltageStr(val.toString());
+                        handlePropChange('voltage', val);
+                      }}
+                      className="w-full accent-primary bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
+                    />
+                  </div>
                 </div>
 
                 {/* Frequency Input (Only if AC) */}
                 {waveformStr === 'AC' && (
-                  <div className="space-y-1.5 group">
+                  <div className="space-y-2 group">
                     <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
                       Frequency
                     </label>
@@ -286,14 +428,56 @@ function PropertiesPanelInner({
                         Hz
                       </span>
                     </div>
+                    {/* Steppers */}
+                    <div className="flex gap-1">
+                      <button onClick={() => adjustFrequency(-10)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">-10Hz</button>
+                      <button onClick={() => adjustFrequency(-1)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">-1Hz</button>
+                      <button onClick={() => adjustFrequency(1)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">+1Hz</button>
+                      <button onClick={() => adjustFrequency(10)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">+10Hz</button>
+                    </div>
+                    {/* Presets */}
+                    <div className="flex flex-wrap gap-1">
+                      {[1, 5, 10, 50, 60, 100, 400, 1000].map(pVal => {
+                        const active = Math.abs((selectedElm as VoltageSourceElement).frequency - pVal) < 1e-9;
+                        return (
+                          <button
+                            key={pVal}
+                            onClick={() => {
+                              setFrequencyStr(pVal.toString());
+                              handlePropChange('frequency', pVal);
+                            }}
+                            className={`px-2 py-0.5 border text-[9px] font-mono cursor-pointer transition-all active:scale-90 ${
+                              active ? 'border-primary text-primary font-bold bg-primary/10' : 'border-border-hairline bg-surface-dim text-text-muted hover:text-text-secondary'
+                            }`}
+                          >
+                            {pVal >= 1000 ? `${pVal/1000}kHz` : `${pVal}Hz`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Linear Slider */}
+                    <div className="pt-1 flex items-center">
+                      <input
+                        type="range"
+                        min="1"
+                        max="1000"
+                        step="1"
+                        value={(selectedElm as VoltageSourceElement).frequency}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          setFrequencyStr(val.toString());
+                          handlePropChange('frequency', val);
+                        }}
+                        className="w-full accent-primary bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
+                      />
+                    </div>
                   </div>
                 )}
               </>
-
             )}
 
             {selectedElm.type === 'capacitor' && (
-              <div className="space-y-1.5 group">
+              <div className="space-y-2 group">
                 <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
                   Capacitance
                 </label>
@@ -310,11 +494,57 @@ function PropertiesPanelInner({
                     F
                   </span>
                 </div>
+                {/* Steppers */}
+                <div className="flex gap-1">
+                  <button onClick={() => adjustCapacitor(0.1)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">/10</button>
+                  <button onClick={() => adjustCapacitor(0.5)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">/2</button>
+                  <button onClick={() => adjustCapacitor(2)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">×2</button>
+                  <button onClick={() => adjustCapacitor(10)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">×10</button>
+                </div>
+                {/* Presets */}
+                <div className="flex flex-wrap gap-1">
+                  {[1e-9, 10e-9, 100e-9, 1e-6, 10e-6, 100e-6, 1e-3, 10e-3].map(pVal => {
+                    const label = pVal >= 1e-3 ? `${pVal*1000}mF` : pVal >= 1e-6 ? `${(pVal*1e6).toFixed(0)}µF` : `${(pVal*1e9).toFixed(0)}nF`;
+                    const active = Math.abs((selectedElm as CapacitorElement).capacitance - pVal) < (pVal * 1e-5);
+                    return (
+                      <button
+                        key={pVal}
+                        onClick={() => {
+                          setCapacitanceStr(pVal.toString());
+                          handlePropChange('capacitance', pVal);
+                        }}
+                        className={`px-2 py-0.5 border text-[9px] font-mono cursor-pointer transition-all active:scale-90 ${
+                          active ? 'border-primary text-primary font-bold bg-primary/10' : 'border-border-hairline bg-surface-dim text-text-muted hover:text-text-secondary'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Logarithmic Slider */}
+                <div className="pt-1 flex items-center">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.001"
+                    value={mapValToLog((selectedElm as CapacitorElement).capacitance, -9, -2)}
+                    onChange={(e) => {
+                      const logVal = parseFloat(e.target.value);
+                      const mapped = mapLogToVal(logVal, -9, -2);
+                      const val = parseFloat(mapped.toPrecision(3));
+                      setCapacitanceStr(val.toString());
+                      handlePropChange('capacitance', val);
+                    }}
+                    className="w-full accent-primary bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
+                  />
+                </div>
               </div>
             )}
 
             {selectedElm.type === 'inductor' && (
-              <div className="space-y-1.5 group">
+              <div className="space-y-2 group">
                 <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
                   Inductance
                 </label>
@@ -330,6 +560,52 @@ function PropertiesPanelInner({
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
                     H
                   </span>
+                </div>
+                {/* Steppers */}
+                <div className="flex gap-1">
+                  <button onClick={() => adjustInductor(0.1)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">/10</button>
+                  <button onClick={() => adjustInductor(0.5)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">/2</button>
+                  <button onClick={() => adjustInductor(2)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">×2</button>
+                  <button onClick={() => adjustInductor(10)} className="flex-1 py-1 px-1.5 border border-border-hairline bg-surface-dim hover:bg-surface-bright text-[9px] font-mono text-text-secondary cursor-pointer hover:text-text-primary active:scale-95">×10</button>
+                </div>
+                {/* Presets */}
+                <div className="flex flex-wrap gap-1">
+                  {[1e-6, 10e-6, 100e-6, 1e-3, 10e-3, 100e-3, 1.0, 10.0].map(pVal => {
+                    const label = pVal >= 1.0 ? `${pVal}H` : pVal >= 1e-3 ? `${pVal*1000}mH` : `${(pVal*1e6).toFixed(0)}µH`;
+                    const active = Math.abs((selectedElm as InductorElement).inductance - pVal) < (pVal * 1e-5);
+                    return (
+                      <button
+                        key={pVal}
+                        onClick={() => {
+                          setInductanceStr(pVal.toString());
+                          handlePropChange('inductance', pVal);
+                        }}
+                        className={`px-2 py-0.5 border text-[9px] font-mono cursor-pointer transition-all active:scale-90 ${
+                          active ? 'border-primary text-primary font-bold bg-primary/10' : 'border-border-hairline bg-surface-dim text-text-muted hover:text-text-secondary'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Logarithmic Slider */}
+                <div className="pt-1 flex items-center">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.001"
+                    value={mapValToLog((selectedElm as InductorElement).inductance, -6, 1)}
+                    onChange={(e) => {
+                      const logVal = parseFloat(e.target.value);
+                      const mapped = mapLogToVal(logVal, -6, 1);
+                      const val = parseFloat(mapped.toPrecision(3));
+                      setInductanceStr(val.toString());
+                      handlePropChange('inductance', val);
+                    }}
+                    className="w-full accent-primary bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
+                  />
                 </div>
               </div>
             )}
