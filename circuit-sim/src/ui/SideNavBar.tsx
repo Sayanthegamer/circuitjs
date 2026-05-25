@@ -7,10 +7,14 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Introduction', icon: 'description', targetId: 'intro' },
-  { label: 'Simulation Loop', icon: 'sync', targetId: 'sim-loop' },
-  { label: 'Matrix Math', icon: 'functions', targetId: 'matrix-math' },
-  { label: 'Component Reference', icon: 'category', targetId: 'comp-ref' }
+  { label: '1.0 Introduction', icon: 'description', targetId: 'intro' },
+  { label: '2.0 Graph Topology', icon: 'account_tree', targetId: 'graph-topology' },
+  { label: '3.0 Modified Nodal Analysis', icon: 'grid_on', targetId: 'matrix-math' },
+  { label: '4.0 Numerical Integration', icon: 'timeline', targetId: 'integration' },
+  { label: '5.0 Nonlinear Solver', icon: 'functions', targetId: 'newton-raphson' },
+  { label: '6.0 Real-Time Performance', icon: 'speed', targetId: 'performance' },
+  { label: '7.0 Analysis Routines', icon: 'analytics', targetId: 'analysis-modes' },
+  { label: '8.0 Spatial Grid Indexing', icon: 'layers', targetId: 'spatial-index' }
 ];
 
 export const SideNavBar: React.FC = () => {

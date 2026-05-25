@@ -38,19 +38,21 @@ export function useKeyboardShortcuts() {
       }
 
       const { circuit, simRunning, setSimRunning } = useCircuitStore.getState();
-      const { selectedId, setSelectedId, setPlacing, setTool } = useUIStore.getState();
+      const { selectedIds = [], setSelectedIds, setPlacing, setTool } = useUIStore.getState();
 
       switch (e.key) {
         case 'Delete':
         case 'Backspace':
-          if (selectedId) {
+          if (selectedIds.length > 0) {
             e.preventDefault();
             const { pushHistory, saveToLocalStorage } = useCircuitStore.getState();
             pushHistory();
-            circuit.removeElement(selectedId);
+            for (const id of selectedIds) {
+              circuit.removeElement(id);
+            }
             circuit.analyzeCircuit();
             saveToLocalStorage();
-            setSelectedId(null);
+            setSelectedIds([]);
           }
           break;
         case 'Escape':

@@ -28,9 +28,45 @@ export function useSimulationLoop(
     y: 0,
     x2: 0,
     y2: 0,
-    volts: [0, 0],
-    nodes: [0, 0],
+    volts: [0, 0, 0, 0, 0],
+    nodes: [0, 0, 0, 0, 0],
     getCurrent: () => 0,
+    getPostCount(this: ICircuitElement) {
+      if (this.type === 'transformer') return 4;
+      if (this.type === 'bjt') return 3;
+      return 2;
+    },
+    getPost(this: ICircuitElement, n: number) {
+      if (this.type === 'transformer') {
+        const horizontal = Math.abs(this.x2 - this.x) > Math.abs(this.y2 - this.y);
+        if (horizontal) {
+          if (n === 0) return { x: this.x, y: this.y - 16 };  // Primary +
+          if (n === 1) return { x: this.x, y: this.y + 16 };  // Primary -
+          if (n === 2) return { x: this.x2, y: this.y2 - 16 }; // Secondary +
+          return { x: this.x2, y: this.y2 + 16 };             // Secondary -
+        } else {
+          if (n === 0) return { x: this.x - 16, y: this.y };  // Primary +
+          if (n === 1) return { x: this.x + 16, y: this.y };  // Primary -
+          if (n === 2) return { x: this.x2 - 16, y: this.y2 }; // Secondary +
+          return { x: this.x2 + 16, y: this.y2 };             // Secondary -
+        }
+      }
+      if (this.type === 'bjt') {
+        const horizontal = Math.abs(this.x2 - this.x) > Math.abs(this.y2 - this.y);
+        if (horizontal) {
+          if (n === 0) return { x: this.x2, y: this.y - 32 }; // Collector
+          if (n === 1) return { x: this.x, y: this.y };       // Base
+          return { x: this.x2, y: this.y + 32 };              // Emitter
+        } else {
+          if (n === 0) return { x: this.x - 32, y: this.y2 }; // Collector
+          if (n === 1) return { x: this.x, y: this.y };       // Base
+          return { x: this.x + 32, y: this.y2 };              // Emitter
+        }
+      }
+      if (n === 0) return { x: this.x, y: this.y };
+      return { x: this.x2, y: this.y2 };
+    },
+    getCurrentIntoNode() { return 0; },
     stamp: () => {},
     startIteration: () => {},
     doStep: () => {},
@@ -65,19 +101,28 @@ export function useSimulationLoop(
 
       // Read state non-reactively from stores
       const { circuit, camera, simRunning, probedItems, plotterRef } = useCircuitStore.getState();
-      const { selectedId, placing, showValues, hoveredElm, hoveredNode, draggingElmId } = useUIStore.getState();
+      const { selectedId, selectedIds = [], selectionBox, placing, showValues, hoveredElm, hoveredNode, draggingElmId } = useUIStore.getState();
 
       // --- Simulate ---
       let steps = 0;
       const needTelemetryUpdate = elapsedTelemetry + dt >= 0.25;
+      const simStart = performance.now();
+      const SIM_BUDGET_MS = 4.0; // Spend at most 4ms solving simulation equations per frame to maintain high FPS
+
       if (simRunning && !circuit.stopMessage) {
         const stepSize = circuit.maxTimeStep > 0 ? circuit.maxTimeStep : 1e-4;
         const targetSteps = Math.round(dt / stepSize);
-        const maxSteps = Math.max(1, Math.min(targetSteps, 2000));
+        const maxSteps = Math.max(1, Math.min(targetSteps, 1000));
         for (let i = 0; i < maxSteps; i++) {
           const captureTelemetry = needTelemetryUpdate && (i === maxSteps - 1);
-          if (!circuit.runStep(captureTelemetry)) break;
+          if (!circuit.runStep(captureTelemetry)) {
+            useCircuitStore.setState({ stopMessage: circuit.stopMessage });
+            break;
+          }
           steps++;
+          if (performance.now() - simStart > SIM_BUDGET_MS) {
+            break;
+          }
         }
       }
 
@@ -105,7 +150,7 @@ export function useSimulationLoop(
 
       // Draw elements
       for (const elm of circuit.elements) {
-        const isSelected = elm.id === selectedId;
+        const isSelected = elm.id === selectedId || selectedIds.includes(elm.id);
 
         const isHovered = hoveredElm?.id === elm.id;
         const isDragging = draggingElmId === elm.id;
@@ -174,6 +219,22 @@ export function useSimulationLoop(
         ghost.y2 = placing.y2;
         drawElement(ctx, ghost, false, 0, 1);
         ctx.globalAlpha = 1;
+      }
+
+      // Draw selection box
+      if (selectionBox) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(74, 144, 226, 0.15)'; // Semi-transparent blue fill
+        ctx.strokeStyle = 'rgba(74, 144, 226, 0.6)'; // Blue border
+        ctx.lineWidth = 1.5 / camera.zoom; // Constant thickness border regardless of zoom
+        ctx.setLineDash([4 / camera.zoom, 4 / camera.zoom]); // Dashed border
+        const bx = Math.min(selectionBox.x1, selectionBox.x2);
+        const by = Math.min(selectionBox.y1, selectionBox.y2);
+        const bw = Math.abs(selectionBox.x2 - selectionBox.x1);
+        const bh = Math.abs(selectionBox.y2 - selectionBox.y1);
+        ctx.fillRect(bx, by, bw, bh);
+        ctx.strokeRect(bx, by, bw, bh);
+        ctx.restore();
       }
 
       ctx.restore();
