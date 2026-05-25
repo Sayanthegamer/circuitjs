@@ -1,20 +1,21 @@
 // ============================================================
-// Mutual Coupling & Coupled Inductors (Transformers) Element
+// Transformer Element (Unified 4-terminal Coupled Inductors)
 // ============================================================
 
 import { CircuitElement } from './base';
 import type { IStamper } from '../types';
-import { InductorElement } from './inductor';
 
-export class MutualCouplingElement extends CircuitElement {
-  type = 'mutual';
+export class TransformerElement extends CircuitElement {
+  type = 'transformer';
+  inductance1 = 1.0;
+  inductance2 = 1.0;
   couplingCoefficient = 0.99;
-  ind1Id = '';
-  ind2Id = '';
+  seriesResistance1 = 0.1;
+  seriesResistance2 = 0.1;
 
-  // Runtime references resolved during stampCircuit pre-pass
-  ind1: InductorElement | null = null;
-  ind2: InductorElement | null = null;
+  // currents in each winding
+  public current = 0;   // Primary current
+  public current2 = 0;  // Secondary current
 
   // Conductance matrix values computed during stamp()
   private g11 = 0;
@@ -32,30 +33,40 @@ export class MutualCouplingElement extends CircuitElement {
   private lastIsEuler = false;
 
   constructor(x: number, y: number, x2: number, y2: number) {
-    // MutualCoupling is drawn on canvas but doesn't have terminals/posts of its own.
     super(x, y, x2, y2);
   }
 
-  getPostCount(): number { return 0; }
+  getPostCount(): number { return 4; }
   getVoltageSourceCount(): number { return 0; }
 
+  getPost(n: number): { x: number; y: number } {
+    const horizontal = Math.abs(this.x2 - this.x) > Math.abs(this.y2 - this.y);
+    if (horizontal) {
+      if (n === 0) return { x: this.x, y: this.y - 16 };  // Primary +
+      if (n === 1) return { x: this.x, y: this.y + 16 };  // Primary -
+      if (n === 2) return { x: this.x2, y: this.y2 - 16 }; // Secondary +
+      return { x: this.x2, y: this.y2 + 16 };             // Secondary -
+    } else {
+      if (n === 0) return { x: this.x - 16, y: this.y };  // Primary +
+      if (n === 1) return { x: this.x + 16, y: this.y };  // Primary -
+      if (n === 2) return { x: this.x2 - 16, y: this.y2 }; // Secondary +
+      return { x: this.x2 + 16, y: this.y2 };             // Secondary -
+    }
+  }
+
   stamp(stamper: IStamper): void {
-    if (!this.ind1 || !this.ind2) return;
+    const L1 = this.inductance1;
+    const L2 = this.inductance2;
+    const Rs1 = this.seriesResistance1;
+    const Rs2 = this.seriesResistance2;
 
-    const L1 = this.ind1.inductance;
-    const L2 = this.ind2.inductance;
-    const Rs1 = this.ind1.seriesResistance;
-    const Rs2 = this.ind2.seriesResistance;
-
-    // Enforce k clamping to prevent singularity at perfect coupling (k = 1.0)
     const kClamped = Math.min(0.99999, Math.max(-0.99999, this.couplingCoefficient));
     const M = kClamped * Math.sqrt(L1 * L2);
 
     if (stamper.isDCOperatingPoint) {
       // In DC operating point, inductors are modeled as their series resistances.
-      // Stamp Rs1 and Rs2 for each inductor respectively.
-      stamper.stampResistor(this.ind1.nodes[0], this.ind1.nodes[1], Math.max(1e-6, Rs1));
-      stamper.stampResistor(this.ind2.nodes[0], this.ind2.nodes[1], Math.max(1e-6, Rs2));
+      stamper.stampResistor(this.nodes[0], this.nodes[1], Math.max(1e-6, Rs1));
+      stamper.stampResistor(this.nodes[2], this.nodes[3], Math.max(1e-6, Rs2));
       return;
     }
 
@@ -71,7 +82,6 @@ export class MutualCouplingElement extends CircuitElement {
       // Z22 = Rs2 + j * omega * L2
       // Z12 = j * omega * M
       // Det = Z11 * Z22 - Z12^2
-      //     = (Rs1 + j * omega * L1) * (Rs2 + j * omega * L2) - (j * omega * M)^2
       //     = (Rs1 * Rs2 - omega^2 * (L1 * L2 - M * M)) + j * omega * (L1 * Rs2 + L2 * Rs1)
       const rReal = Rs1 * Rs2 - omega * omega * (L1 * L2 - M * M);
       const rImag = omega * (L1 * Rs2 + L2 * Rs1);
@@ -79,25 +89,16 @@ export class MutualCouplingElement extends CircuitElement {
 
       if (den === 0) return;
 
-      // Y = Z^-1 = [Z22 / Det, -Z12 / Det]
-      //            [-Z12 / Det, Z11 / Det]
-      // Let's compute:
-      // Y11 = (Rs2 + j*omega*L2) * (rReal - j*rImag) / den
       const g11 = (Rs2 * rReal + omega * L2 * rImag) / den;
       const b11 = (omega * L2 * rReal - Rs2 * rImag) / den;
 
-      // Y22 = (Rs1 + j*omega*L1) * (rReal - j*rImag) / den
       const g22 = (Rs1 * rReal + omega * L1 * rImag) / den;
       const b22 = (omega * L1 * rReal - Rs1 * rImag) / den;
 
-      // Y12 = -j*omega*M * (rReal - j*rImag) / den
-      //     = (-omega * M * rImag - j * omega * M * rReal) / den
       const g12 = (-omega * M * rImag) / den;
       const b12 = (-omega * M * rReal) / den;
 
-      // Stamp real part G into the MNA matrix
-      const [n1a, n1b] = this.ind1.nodes;
-      const [n2a, n2b] = this.ind2.nodes;
+      const [n1a, n1b, n2a, n2b] = this.nodes;
 
       stamper.stampConductance(n1a, n1b, g11);
       stamper.stampConductance(n2a, n2b, g22);
@@ -142,8 +143,7 @@ export class MutualCouplingElement extends CircuitElement {
     this.g22 = Rtot11 / det;
     this.g12 = -Rtot12 / det;
 
-    const [n1a, n1b] = this.ind1.nodes;
-    const [n2a, n2b] = this.ind2.nodes;
+    const [n1a, n1b, n2a, n2b] = this.nodes;
 
     stamper.stampConductance(n1a, n1b, this.g11);
     stamper.stampConductance(n2a, n2b, this.g22);
@@ -165,18 +165,14 @@ export class MutualCouplingElement extends CircuitElement {
   }
 
   startIteration(): void {
-    if (!this.ind1 || !this.ind2) return;
+    const Rs1 = this.seriesResistance1;
+    const Rs2 = this.seriesResistance2;
 
-    const Rs1 = this.ind1.seriesResistance;
-    const Rs2 = this.ind2.seriesResistance;
+    const v1prev = this.volts[0] - this.volts[1];
+    const v2prev = this.volts[2] - this.volts[3];
+    const i1prev = this.current;
+    const i2prev = this.current2;
 
-    // Get previous voltages/currents
-    const v1prev = this.ind1.volts[0] - this.ind1.volts[1];
-    const v2prev = this.ind2.volts[0] - this.ind2.volts[1];
-    const i1prev = this.ind1.current;
-    const i2prev = this.ind2.current;
-
-    // Ideal voltages across the pure inductances in the previous timestep
     const vL1prev = v1prev - i1prev * Rs1;
     const vL2prev = v2prev - i2prev * Rs2;
 
@@ -191,37 +187,45 @@ export class MutualCouplingElement extends CircuitElement {
       vhist2 = -vL2prev - this.ReqM * i1prev - this.Req2 * i2prev;
     }
 
-    // iComp = -Gtot * vhist
     this.iComp1 = -(this.g11 * vhist1 + this.g12 * vhist2);
     this.iComp2 = -(this.g12 * vhist1 + this.g22 * vhist2);
   }
 
   doStep(stamper: IStamper): void {
-    if (!this.ind1 || !this.ind2) return;
     if (stamper.isDCOperatingPoint || stamper.isACSweep) return;
-
-    stamper.stampCurrentSource(this.ind1.nodes[0], this.ind1.nodes[1], this.iComp1);
-    stamper.stampCurrentSource(this.ind2.nodes[0], this.ind2.nodes[1], this.iComp2);
+    stamper.stampCurrentSource(this.nodes[0], this.nodes[1], this.iComp1);
+    stamper.stampCurrentSource(this.nodes[2], this.nodes[3], this.iComp2);
   }
 
   calculateCurrent(): void {
-    if (!this.ind1 || !this.ind2) return;
+    const v1 = this.volts[0] - this.volts[1];
+    const v2 = this.volts[2] - this.volts[3];
 
-    const v1 = this.ind1.volts[0] - this.ind1.volts[1];
-    const v2 = this.ind2.volts[0] - this.ind2.volts[1];
+    this.current = this.g11 * v1 + this.g12 * v2 + this.iComp1;
+    this.current2 = this.g12 * v1 + this.g22 * v2 + this.iComp2;
+  }
 
-    const i1 = this.g11 * v1 + this.g12 * v2 + this.iComp1;
-    const i2 = this.g12 * v1 + this.g22 * v2 + this.iComp2;
+  getCurrentIntoNode(n: number): number {
+    if (n === 0) return -this.current;
+    if (n === 1) return this.current;
+    if (n === 2) return -this.current2;
+    if (n === 3) return this.current2;
+    return 0;
+  }
 
-    this.ind1.current = i1;
-    this.ind2.current = i2;
+  getCurrent(): number {
+    return this.current;
+  }
+
+  getVoltageDiff(): number {
+    return this.volts[0] - this.volts[1];
   }
 
   reset(): void {
     super.reset();
+    this.current = 0;
+    this.current2 = 0;
     this.iComp1 = 0;
     this.iComp2 = 0;
-    if (this.ind1) this.ind1.reset();
-    if (this.ind2) this.ind2.reset();
   }
 }

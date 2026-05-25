@@ -11,5 +11,5 @@ export { LEDElement } from './led';
 export { BJTElement } from './bjt';
 export { CurrentSourceElement } from './current-source';
 export { LogicGateElement } from './logic-gate';
-export { MutualCouplingElement } from './mutual-coupling';
+export { TransformerElement } from './transformer';
 

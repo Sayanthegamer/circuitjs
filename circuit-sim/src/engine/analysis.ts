@@ -124,16 +124,13 @@ export class ACSweepEngine {
             B = -omega * ind.inductance / den;
           }
           stampComplexConductance(ind.nodes[0], ind.nodes[1], B);
-        } else if (ce.type === 'mutual') {
-          const mc = ce as any;
-          if (!mc.ind1 || !mc.ind2) continue;
+        } else if (ce.type === 'transformer') {
+          const tf = ce as any;
+          const [n1a, n1b, n2a, n2b] = tf.nodes;
 
-          const [n1a, n1b] = mc.ind1.nodes;
-          const [n2a, n2b] = mc.ind2.nodes;
-
-          const b11 = mc.b11_ac ?? 0;
-          const b22 = mc.b22_ac ?? 0;
-          const b12 = mc.b12_ac ?? 0;
+          const b11 = tf.b11_ac ?? 0;
+          const b22 = tf.b22_ac ?? 0;
+          const b12 = tf.b12_ac ?? 0;
 
           stampComplexConductance(n1a, n1b, b11);
           stampComplexConductance(n2a, n2b, b22);

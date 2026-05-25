@@ -5,7 +5,7 @@
 import { create } from 'zustand';
 import type { ICircuitElement } from '../engine/types';
 
-export type ToolMode = 'select' | 'wire' | 'resistor' | 'voltage' | 'ground' | 'capacitor' | 'inductor' | 'switch' | 'diode' | 'led' | 'bjt' | 'current_source' | 'and' | 'or' | 'not' | 'mutual';
+export type ToolMode = 'select' | 'wire' | 'resistor' | 'voltage' | 'ground' | 'capacitor' | 'inductor' | 'switch' | 'diode' | 'led' | 'bjt' | 'current_source' | 'and' | 'or' | 'not' | 'transformer';
 
 export interface PlacingState {
   type: ToolMode;

@@ -72,13 +72,19 @@ function PropertiesPanelInner({
     selectedElm.type === 'logic_gate' ? (selectedElm as any).propagationDelay.toString() : '1e-6'
   );
   const [couplingCoefficientStr, setCouplingCoefficientStr] = useState(() =>
-    selectedElm.type === 'mutual' ? (selectedElm as any).couplingCoefficient.toString() : '0.99'
+    selectedElm.type === 'transformer' ? (selectedElm as any).couplingCoefficient.toString() : '0.99'
   );
-  const [ind1IdState, setInd1IdState] = useState(() =>
-    selectedElm.type === 'mutual' ? (selectedElm as any).ind1Id : ''
+  const [inductance1Str, setInductance1Str] = useState(() =>
+    selectedElm.type === 'transformer' ? (selectedElm as any).inductance1.toString() : '1.0'
   );
-  const [ind2IdState, setInd2IdState] = useState(() =>
-    selectedElm.type === 'mutual' ? (selectedElm as any).ind2Id : ''
+  const [inductance2Str, setInductance2Str] = useState(() =>
+    selectedElm.type === 'transformer' ? (selectedElm as any).inductance2.toString() : '1.0'
+  );
+  const [seriesResistance1Str, setSeriesResistance1Str] = useState(() =>
+    selectedElm.type === 'transformer' ? (selectedElm as any).seriesResistance1.toString() : '0.1'
+  );
+  const [seriesResistance2Str, setSeriesResistance2Str] = useState(() =>
+    selectedElm.type === 'transformer' ? (selectedElm as any).seriesResistance2.toString() : '0.1'
   );
 
   const isProbed = (prop: 'V1' | 'V2' | 'I' | 'Vdiff') =>
@@ -101,7 +107,7 @@ function PropertiesPanelInner({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handlePropChange = (
-    prop: 'resistance' | 'voltage' | 'capacitance' | 'inductance' | 'closed' | 'waveform' | 'frequency' | 'bf' | 'isNpn' | 'currentValue' | 'vHigh' | 'vLow' | 'vThreshold' | 'propagationDelay' | 'couplingCoefficient' | 'ind1Id' | 'ind2Id',
+    prop: 'resistance' | 'voltage' | 'capacitance' | 'inductance' | 'closed' | 'waveform' | 'frequency' | 'bf' | 'isNpn' | 'currentValue' | 'vHigh' | 'vLow' | 'vThreshold' | 'propagationDelay' | 'couplingCoefficient' | 'inductance1' | 'inductance2' | 'seriesResistance1' | 'seriesResistance2',
     value: any
   ) => {
     const { pushHistory, saveToLocalStorage } = useCircuitStore.getState();
@@ -138,12 +144,18 @@ function PropertiesPanelInner({
       (selectedElm as any).vThreshold = value;
     } else if (selectedElm.type === 'logic_gate' && prop === 'propagationDelay') {
       (selectedElm as any).propagationDelay = value;
-    } else if (selectedElm.type === 'mutual' && prop === 'couplingCoefficient') {
-      (selectedElm as any).couplingCoefficient = value;
-    } else if (selectedElm.type === 'mutual' && prop === 'ind1Id') {
-      (selectedElm as any).ind1Id = value;
-    } else if (selectedElm.type === 'mutual' && prop === 'ind2Id') {
-      (selectedElm as any).ind2Id = value;
+    } else if (selectedElm.type === 'transformer') {
+      if (prop === 'couplingCoefficient') {
+        (selectedElm as any).couplingCoefficient = value;
+      } else if (prop === 'inductance1') {
+        (selectedElm as any).inductance1 = value;
+      } else if (prop === 'inductance2') {
+        (selectedElm as any).inductance2 = value;
+      } else if (prop === 'seriesResistance1') {
+        (selectedElm as any).seriesResistance1 = value;
+      } else if (prop === 'seriesResistance2') {
+        (selectedElm as any).seriesResistance2 = value;
+      }
     }
     circuit.analyzeCircuit();
     saveToLocalStorage();
@@ -170,13 +182,44 @@ function PropertiesPanelInner({
     }
   };
 
-  const handleIndChange = (prop: 'ind1Id' | 'ind2Id', val: string) => {
-    if (prop === 'ind1Id') {
-      setInd1IdState(val);
+  const commitInductance1 = () => {
+    const val = parseFloat(inductance1Str);
+    if (isNaN(val) || val <= 0) {
+      setInductance1Str((selectedElm as any).inductance1.toString());
     } else {
-      setInd2IdState(val);
+      handlePropChange('inductance1', val);
+      setInductance1Str(val.toString());
     }
-    handlePropChange(prop, val);
+  };
+
+  const commitInductance2 = () => {
+    const val = parseFloat(inductance2Str);
+    if (isNaN(val) || val <= 0) {
+      setInductance2Str((selectedElm as any).inductance2.toString());
+    } else {
+      handlePropChange('inductance2', val);
+      setInductance2Str(val.toString());
+    }
+  };
+
+  const commitSeriesResistance1 = () => {
+    const val = parseFloat(seriesResistance1Str);
+    if (isNaN(val) || val < 0) {
+      setSeriesResistance1Str((selectedElm as any).seriesResistance1.toString());
+    } else {
+      handlePropChange('seriesResistance1', val);
+      setSeriesResistance1Str(val.toString());
+    }
+  };
+
+  const commitSeriesResistance2 = () => {
+    const val = parseFloat(seriesResistance2Str);
+    if (isNaN(val) || val < 0) {
+      setSeriesResistance2Str((selectedElm as any).seriesResistance2.toString());
+    } else {
+      handlePropChange('seriesResistance2', val);
+      setSeriesResistance2Str(val.toString());
+    }
   };
 
 
@@ -556,64 +599,101 @@ function PropertiesPanelInner({
               </div>
             )}
 
-            {selectedElm.type === 'mutual' && (() => {
-              const inductors = circuit.elements.filter(elm => elm.type === 'inductor');
-              return (
-                <>
-                  <div className="space-y-1.5 group">
-                    <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
-                      Coupling Coefficient (k)
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={couplingCoefficientStr}
-                        onChange={(e) => setCouplingCoefficientStr(e.target.value)}
-                        onBlur={commitCouplingCoefficient}
-                        onKeyDown={(e) => handleKeyDown(e, commitCouplingCoefficient)}
-                        className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
-                      />
-                    </div>
+            {selectedElm.type === 'transformer' && (
+              <>
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Primary Inductance (L₁)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={inductance1Str}
+                      onChange={(e) => setInductance1Str(e.target.value)}
+                      onBlur={commitInductance1}
+                      onKeyDown={(e) => handleKeyDown(e, commitInductance1)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                      H
+                    </span>
                   </div>
+                </div>
 
-                  <div className="space-y-1.5 group">
-                    <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
-                      Inductor 1
-                    </label>
-                    <select
-                      value={ind1IdState}
-                      onChange={(e) => handleIndChange('ind1Id', e.target.value)}
-                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all text-text-primary"
-                    >
-                      <option value="">(None)</option>
-                      {inductors.map((ind) => (
-                        <option key={ind.id} value={ind.id}>
-                          Inductor {ind.id.slice(0, 4)} ({ind.x},{ind.y})
-                        </option>
-                      ))}
-                    </select>
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Secondary Inductance (L₂)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={inductance2Str}
+                      onChange={(e) => setInductance2Str(e.target.value)}
+                      onBlur={commitInductance2}
+                      onKeyDown={(e) => handleKeyDown(e, commitInductance2)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                      H
+                    </span>
                   </div>
+                </div>
 
-                  <div className="space-y-1.5 group">
-                    <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
-                      Inductor 2
-                    </label>
-                    <select
-                      value={ind2IdState}
-                      onChange={(e) => handleIndChange('ind2Id', e.target.value)}
-                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all text-text-primary"
-                    >
-                      <option value="">(None)</option>
-                      {inductors.map((ind) => (
-                        <option key={ind.id} value={ind.id}>
-                          Inductor {ind.id.slice(0, 4)} ({ind.x},{ind.y})
-                        </option>
-                      ))}
-                    </select>
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Coupling Coefficient (k)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={couplingCoefficientStr}
+                      onChange={(e) => setCouplingCoefficientStr(e.target.value)}
+                      onBlur={commitCouplingCoefficient}
+                      onKeyDown={(e) => handleKeyDown(e, commitCouplingCoefficient)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                    />
                   </div>
-                </>
-              );
-            })()}
+                </div>
+
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Primary Winding Resistance (R_s1)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={seriesResistance1Str}
+                      onChange={(e) => setSeriesResistance1Str(e.target.value)}
+                      onBlur={commitSeriesResistance1}
+                      onKeyDown={(e) => handleKeyDown(e, commitSeriesResistance1)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                      Ω
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 group">
+                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                    Secondary Winding Resistance (R_s2)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={seriesResistance2Str}
+                      onChange={(e) => setSeriesResistance2Str(e.target.value)}
+                      onBlur={commitSeriesResistance2}
+                      onKeyDown={(e) => handleKeyDown(e, commitSeriesResistance2)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                      Ω
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
 
             {selectedElm.type === 'logic_gate' && (
               <>

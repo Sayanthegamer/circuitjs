@@ -15,7 +15,7 @@ import {
   BJTElement,
   CurrentSourceElement,
   LogicGateElement,
-  MutualCouplingElement,
+  TransformerElement,
 } from '../engine';
 import { GRID_SIZE } from '../renderer/grid';
 
@@ -417,8 +417,8 @@ export function useCanvasInteraction(
         case 'current_source':
           newElm = new CurrentSourceElement(placing.x1, placing.y1, x2, y2, 0.002);
           break;
-        case 'mutual':
-          newElm = new MutualCouplingElement(placing.x1, placing.y1, x2, y2);
+        case 'transformer':
+          newElm = new TransformerElement(placing.x1, placing.y1, x2, y2);
           break;
         case 'and':
           newElm = new LogicGateElement(placing.x1, placing.y1, x2, y2, 'AND');

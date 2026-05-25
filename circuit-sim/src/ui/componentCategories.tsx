@@ -52,7 +52,7 @@ export const CATEGORIES: Category[] = [
     items: [
       { mode: 'capacitor', label: 'Capacitor', icon: <Minus size={16} className="rotate-90" />, desc: 'Stores charge' },
       { mode: 'inductor', label: 'Inductor', icon: <Activity size={16} />, desc: 'Stores flux' },
-      { mode: 'mutual', label: 'Mutual Inductance', icon: <Zap size={16} className="rotate-90" />, desc: 'Couples two inductors' },
+      { mode: 'transformer', label: 'Transformer', icon: <Zap size={16} className="rotate-90" />, desc: 'Coupled primary/secondary windings' },
     ]
   },
   {

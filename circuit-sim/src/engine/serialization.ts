@@ -12,7 +12,7 @@ import {
   BJTElement,
   CurrentSourceElement,
   LogicGateElement,
-  MutualCouplingElement,
+  TransformerElement,
 } from './elements';
 
 export interface SerializedElement {
@@ -45,8 +45,10 @@ export interface SerializedElement {
   vThreshold?: number;
   propagationDelay?: number;
   couplingCoefficient?: number;
-  ind1Id?: string;
-  ind2Id?: string;
+  inductance1?: number;
+  inductance2?: number;
+  seriesResistance1?: number;
+  seriesResistance2?: number;
 }
 
 export interface SerializedCircuit {
@@ -94,10 +96,12 @@ export function serializeCircuit(circuit: Circuit): string {
       base.vLow = elm.vLow;
       base.vThreshold = elm.vThreshold;
       base.propagationDelay = elm.propagationDelay;
-    } else if (elm instanceof MutualCouplingElement) {
+    } else if (elm instanceof TransformerElement) {
       base.couplingCoefficient = elm.couplingCoefficient;
-      base.ind1Id = elm.ind1Id;
-      base.ind2Id = elm.ind2Id;
+      base.inductance1 = elm.inductance1;
+      base.inductance2 = elm.inductance2;
+      base.seriesResistance1 = elm.seriesResistance1;
+      base.seriesResistance2 = elm.seriesResistance2;
     }
     return base;
   });
@@ -157,11 +161,13 @@ export function deserializeCircuit(circuit: Circuit, jsonStr: string): void {
           if (elm.vThreshold !== undefined) newElm.vThreshold = elm.vThreshold;
           if (elm.propagationDelay !== undefined) newElm.propagationDelay = elm.propagationDelay;
           break;
-        case 'mutual':
-          newElm = new MutualCouplingElement(elm.x, elm.y, elm.x2, elm.y2);
-          if (elm.couplingCoefficient !== undefined) (newElm as any).couplingCoefficient = elm.couplingCoefficient;
-          if (elm.ind1Id !== undefined) (newElm as any).ind1Id = elm.ind1Id;
-          if (elm.ind2Id !== undefined) (newElm as any).ind2Id = elm.ind2Id;
+        case 'transformer':
+          newElm = new TransformerElement(elm.x, elm.y, elm.x2, elm.y2);
+          if (elm.couplingCoefficient !== undefined) newElm.couplingCoefficient = elm.couplingCoefficient;
+          if (elm.inductance1 !== undefined) newElm.inductance1 = elm.inductance1;
+          if (elm.inductance2 !== undefined) newElm.inductance2 = elm.inductance2;
+          if (elm.seriesResistance1 !== undefined) newElm.seriesResistance1 = elm.seriesResistance1;
+          if (elm.seriesResistance2 !== undefined) newElm.seriesResistance2 = elm.seriesResistance2;
           break;
         case 'wire':
           newElm = new WireElement(elm.x, elm.y, elm.x2, elm.y2);

@@ -782,7 +782,7 @@ export function drawElement(
     case 'bjt': drawBJT(ctx, elm, selected, time, zoom, hoveredNode); break;
     case 'current_source': drawCurrentSource(ctx, elm, selected, time, zoom, hoveredNode); break;
     case 'logic_gate': drawLogicGate(ctx, elm, selected, time, zoom, hoveredNode); break;
-    case 'mutual': drawMutualCoupling(ctx, elm, selected, time, zoom, hoveredNode); break;
+    case 'transformer': drawTransformer(ctx, elm, selected, time, zoom, hoveredNode); break;
     default:
       drawLead(ctx, elm.x, elm.y, elm.x2, elm.y2, elm.volts[0] || 0);
       drawPost(ctx, elm.x, elm.y, elm.volts[0] || 0, selected, hoveredNode === 0 || hoveredNode === null);
@@ -790,89 +790,128 @@ export function drawElement(
   }
 }
 
-export function drawMutualCoupling(
+export function drawTransformer(
   ctx: CanvasRenderingContext2D,
-  elm: any,
+  elm: ICircuitElement,
   selected: boolean,
-  _time: number,
-  _zoom: number,
-  _hoveredNode?: number | null
+  time: number,
+  zoom: number,
+  hoveredNode?: number | null
 ): void {
-  const { x, y, x2, y2 } = elm;
-  const cx = (x + x2) / 2;
-  const cy = (y + y2) / 2;
+  const p1 = elm.getPost(0);
+  const p2 = elm.getPost(1);
+  const s1 = elm.getPost(2);
+  const s2 = elm.getPost(3);
 
-  ctx.save();
+  const horizontal = Math.abs(elm.x2 - elm.x) > Math.abs(elm.y2 - elm.y);
 
-  // Draw target connection lines if inductors are assigned
-  if (elm.ind1 || elm.ind2) {
-    ctx.strokeStyle = selected ? 'rgba(99, 102, 241, 0.4)' : 'rgba(156, 163, 175, 0.25)';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 4]);
+  // Core coordinate calculations
+  let bx1 = 0, by1 = 0, bx2 = 0, by2 = 0;
+  let cx1 = 0, cy1 = 0, cx2 = 0, cy2 = 0;
+  let dirX = 0, dirY = 0;
 
-    if (elm.ind1) {
-      const idx = (elm.ind1.x + elm.ind1.x2) / 2;
-      const idy = (elm.ind1.y + elm.ind1.y2) / 2;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(idx, idy);
-      ctx.stroke();
-    }
-    if (elm.ind2) {
-      const idx = (elm.ind2.x + elm.ind2.x2) / 2;
-      const idy = (elm.ind2.y + elm.ind2.y2) / 2;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(idx, idy);
-      ctx.stroke();
-    }
+  if (horizontal) {
+    bx1 = elm.x;  by1 = elm.y - 10;
+    bx2 = elm.x;  by2 = elm.y + 10;
+    cx1 = elm.x2; cy1 = elm.y2 - 10;
+    cx2 = elm.x2; cy2 = elm.y2 + 10;
+    dirX = Math.sign(elm.x2 - elm.x);
+    dirY = 0;
+  } else {
+    bx1 = elm.x - 10;  by1 = elm.y;
+    bx2 = elm.x + 10;  by2 = elm.y;
+    cx1 = elm.x2 - 10; cy1 = elm.y2;
+    cx2 = elm.x2 + 10; cy2 = elm.y2;
+    dirX = 0;
+    dirY = Math.sign(elm.y2 - elm.y);
   }
 
-  // Draw the mutual coupling element card/symbol
-  const size = 20;
-  ctx.strokeStyle = selected ? '#6366f1' : '#9ca3af';
-  ctx.lineWidth = selected ? 2.5 : 1.5;
-  ctx.fillStyle = '#0f172a'; // dark theme premium fill
-  ctx.setLineDash([]);
+  // 1. Draw leads
+  drawLead(ctx, p1.x, p1.y, bx1, by1, elm.volts[0]);
+  drawLead(ctx, p2.x, p2.y, bx2, by2, elm.volts[1]);
+  drawLead(ctx, s1.x, s1.y, cx1, cy1, elm.volts[2]);
+  drawLead(ctx, s2.x, s2.y, cx2, cy2, elm.volts[3]);
 
-  // Draw box
-  ctx.beginPath();
-  ctx.roundRect(cx - size, cy - size, size * 2, size * 2, 4);
-  ctx.fill();
-  ctx.stroke();
+  // 2. Draw coils
+  ctx.strokeStyle = selected ? '#818cf8' : '#e0e0e8';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
 
-  // Draw transformer style winding indicators (two curves/arcs and a core line)
-  ctx.strokeStyle = '#38bdf8'; // Sky blue for transformer/inductor lines
+  const coils = 3;
+  const coilRad = 4;
+
+  // Primary coil
+  drawCoil(ctx, bx1, by1, bx2, by2, coils, coilRad, dirX, dirY);
+  // Secondary coil
+  drawCoil(ctx, cx1, cy1, cx2, cy2, coils, coilRad, -dirX, -dirY);
+
+  // Helper function to draw coil bezier curves
+  function drawCoil(
+    c: CanvasRenderingContext2D,
+    xStart: number, yStart: number,
+    xEnd: number, yEnd: number,
+    numCoils: number,
+    rad: number,
+    dX: number, dY: number
+  ) {
+    const dx = xEnd - xStart;
+    const dy = yEnd - yStart;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 1) return;
+    const nx = dx / len;
+    const ny = dy / len;
+    const coilLen = len / numCoils;
+
+    c.beginPath();
+    c.moveTo(xStart, yStart);
+    for (let i = 0; i < numCoils; i++) {
+      const cx_a = xStart + nx * (i * coilLen + coilLen * 0.25);
+      const cy_a = yStart + ny * (i * coilLen + coilLen * 0.25);
+      const cx_b = xStart + nx * (i * coilLen + coilLen * 0.75);
+      const cy_b = yStart + ny * (i * coilLen + coilLen * 0.75);
+      const endX = xStart + nx * ((i + 1) * coilLen);
+      const endY = yStart + ny * ((i + 1) * coilLen);
+
+      c.bezierCurveTo(
+        cx_a + dX * rad * 2, cy_a + dY * rad * 2,
+        cx_b + dX * rad * 2, cy_b + dY * rad * 2,
+        endX, endY
+      );
+    }
+    c.stroke();
+  }
+
+  // 3. Draw core lines in the middle
+  ctx.strokeStyle = selected ? '#818cf8' : '#94a3b8';
   ctx.lineWidth = 1.5;
-  
-  // Left winding line
   ctx.beginPath();
-  ctx.arc(cx - 6, cy - 6, 4, -Math.PI / 2, Math.PI / 2);
-  ctx.arc(cx - 6, cy + 2, 4, -Math.PI / 2, Math.PI / 2);
+  const midX = (elm.x + elm.x2) / 2;
+  const midY = (elm.y + elm.y2) / 2;
+  if (horizontal) {
+    ctx.moveTo(midX - 2, midY - 10);
+    ctx.lineTo(midX - 2, midY + 10);
+    ctx.moveTo(midX + 2, midY - 10);
+    ctx.lineTo(midX + 2, midY + 10);
+  } else {
+    ctx.moveTo(midX - 10, midY - 2);
+    ctx.lineTo(midX + 10, midY - 2);
+    ctx.moveTo(midX - 10, midY + 2);
+    ctx.lineTo(midX + 10, midY + 2);
+  }
   ctx.stroke();
 
-  // Right winding line
-  ctx.beginPath();
-  ctx.arc(cx + 6, cy - 6, 4, Math.PI / 2, -Math.PI / 2);
-  ctx.arc(cx + 6, cy + 2, 4, Math.PI / 2, -Math.PI / 2);
-  ctx.stroke();
+  // 4. Draw posts
+  drawPost(ctx, p1.x, p1.y, elm.volts[0], selected, hoveredNode === 0 || hoveredNode === null);
+  drawPost(ctx, p2.x, p2.y, elm.volts[1], selected, hoveredNode === 1 || hoveredNode === null);
+  drawPost(ctx, s1.x, s1.y, elm.volts[2], selected, hoveredNode === 2 || hoveredNode === null);
+  drawPost(ctx, s2.x, s2.y, elm.volts[3], selected, hoveredNode === 3 || hoveredNode === null);
 
-  // Core lines in the middle
-  ctx.strokeStyle = '#94a3b8';
-  ctx.beginPath();
-  ctx.moveTo(cx - 1, cy - 8);
-  ctx.lineTo(cx - 1, cy + 8);
-  ctx.moveTo(cx + 1, cy - 8);
-  ctx.lineTo(cx + 1, cy + 8);
-  ctx.stroke();
-
-  // Draw label below
-  ctx.fillStyle = '#f8fafc';
-  ctx.font = 'bold 9px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  const k = elm.couplingCoefficient !== undefined ? elm.couplingCoefficient : 0.99;
-  ctx.fillText(`k = ${k.toFixed(2)}`, cx, cy + size + 4);
-
-  ctx.restore();
+  // 5. Draw current dots
+  if (Math.abs((elm as any).current) > 1e-12) {
+    drawCurrentDots(ctx, p1.x, p1.y, p2.x, p2.y, (elm as any).current, time, zoom);
+  }
+  if (Math.abs((elm as any).current2) > 1e-12) {
+    drawCurrentDots(ctx, s1.x, s1.y, s2.x, s2.y, (elm as any).current2, time, zoom);
+  }
 }
