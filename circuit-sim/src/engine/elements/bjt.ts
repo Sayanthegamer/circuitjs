@@ -162,8 +162,17 @@ export class BJTElement extends CircuitElement {
     const alphaF = this.bf / (1 + this.bf);
     const alphaR = this.br / (1 + this.br);
 
-    const If = (this.is / alphaF) * (Math.exp(vbe / this.vt) - 1);
-    const Ir = (this.is / alphaR) * (Math.exp(vbc / this.vt) - 1);
+    let vbe_vt = vbe / this.vt;
+    let vbc_vt = vbc / this.vt;
+    const maxExp = 150;
+    const minExp = -1500 / this.vt;
+    if (vbe_vt > maxExp) vbe_vt = maxExp;
+    if (vbe_vt < minExp) vbe_vt = minExp;
+    if (vbc_vt > maxExp) vbc_vt = maxExp;
+    if (vbc_vt < minExp) vbc_vt = minExp;
+
+    const If = (this.is / alphaF) * (Math.exp(vbe_vt) - 1);
+    const Ir = (this.is / alphaR) * (Math.exp(vbc_vt) - 1);
 
     // Current is designated as Collector-Emitter current
     this.current = s * (alphaF * If - Ir);
@@ -181,8 +190,17 @@ export class BJTElement extends CircuitElement {
     const alphaF = this.bf / (1 + this.bf);
     const alphaR = this.br / (1 + this.br);
 
-    const If = (this.is / alphaF) * (Math.exp(vbe / this.vt) - 1);
-    const Ir = (this.is / alphaR) * (Math.exp(vbc / this.vt) - 1);
+    let vbe_vt = vbe / this.vt;
+    let vbc_vt = vbc / this.vt;
+    const maxExp = 150;
+    const minExp = -1500 / this.vt;
+    if (vbe_vt > maxExp) vbe_vt = maxExp;
+    if (vbe_vt < minExp) vbe_vt = minExp;
+    if (vbc_vt > maxExp) vbc_vt = maxExp;
+    if (vbc_vt < minExp) vbc_vt = minExp;
+
+    const If = (this.is / alphaF) * (Math.exp(vbe_vt) - 1);
+    const Ir = (this.is / alphaR) * (Math.exp(vbc_vt) - 1);
 
     if (n === 0) return s * (alphaF * If - Ir); // Collector (inwards)
     if (n === 1) return s * ((1 - alphaF) * If + (1 - alphaR) * Ir); // Base (inwards)

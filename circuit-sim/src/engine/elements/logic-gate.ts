@@ -97,9 +97,10 @@ export class LogicGateElement extends CircuitElement {
     if (this.nextTransitionTime !== -1 && (stamper.t + stamper.timeStep) >= this.nextTransitionTime - 1e-12) {
       this.lastOutVal = this.targetOutVal;
       this.nextTransitionTime = -1;
-      this.lastIn1 = in1;
-      this.lastIn2 = in2;
     }
+
+    this.lastIn1 = in1;
+    this.lastIn2 = in2;
 
     stamper.updateVoltageSource(this.nodes[outputPin], 0, this.voltSource, this.lastOutVal);
   }

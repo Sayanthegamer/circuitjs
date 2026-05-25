@@ -633,8 +633,6 @@ export class Circuit implements IStamper {
       };
     }
     this.circuitNeedsMap = false;
-
-    /* eslint-disable @typescript-eslint/no-explicit-any */
     // Pre-pass for coupled inductors: reset isCoupled flag
     for (const ce of this.elements) {
       if (ce.type === 'inductor') {
@@ -661,7 +659,6 @@ export class Circuit implements IStamper {
         }
       }
     }
-    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     // Stamp all elements
     for (const ce of this.elements) {
@@ -886,6 +883,8 @@ export class Circuit implements IStamper {
   computeDCOperatingPoint(): boolean {
     if (!this.circuitMatrix || this.nodeList.length === 0 || this.elements.length === 0) return false;
 
+    this.stopMessage = null;
+
     const oldDCOp = this.isDCOperatingPoint;
     const oldACSweep = this.isACSweep;
     const oldTimeStep = this.timeStep;
@@ -897,6 +896,21 @@ export class Circuit implements IStamper {
 
     const savedVoltages = new Float64Array(this.nodeVoltages.length);
     copyVector(this.nodeVoltages, savedVoltages, this.nodeVoltages.length);
+
+    const savedElementStates = this.elements.map(ce => {
+      return {
+        element: ce,
+        volts: ce.volts ? ce.volts.slice() : [],
+        current: (ce as any).current,
+        vdio: (ce as any).vdio,
+        lastvoltdiff: (ce as any).lastvoltdiff,
+        lastGeq: (ce as any).lastGeq,
+        lastIeq: (ce as any).lastIeq,
+        lastVbe: (ce as any).lastVbe,
+        lastVbc: (ce as any).lastVbc,
+        currentSourceValue: (ce as any).currentSourceValue,
+      };
+    });
 
     const steps = 10;
     let success = true;
@@ -985,6 +999,22 @@ export class Circuit implements IStamper {
 
     if (!success) {
       copyVector(savedVoltages, this.nodeVoltages, this.nodeVoltages.length);
+      for (const state of savedElementStates) {
+        const ce = state.element;
+        if (ce.volts && state.volts) {
+          for (let i = 0; i < ce.volts.length; i++) {
+            ce.volts[i] = state.volts[i];
+          }
+        }
+        (ce as any).current = state.current;
+        if ((ce as any).vdio !== undefined) (ce as any).vdio = state.vdio;
+        if ((ce as any).lastvoltdiff !== undefined) (ce as any).lastvoltdiff = state.lastvoltdiff;
+        if ((ce as any).lastGeq !== undefined) (ce as any).lastGeq = state.lastGeq;
+        if ((ce as any).lastIeq !== undefined) (ce as any).lastIeq = state.lastIeq;
+        if ((ce as any).lastVbe !== undefined) (ce as any).lastVbe = state.lastVbe;
+        if ((ce as any).lastVbc !== undefined) (ce as any).lastVbc = state.lastVbc;
+        if ((ce as any).currentSourceValue !== undefined) (ce as any).currentSourceValue = state.currentSourceValue;
+      }
       return false;
     }
 

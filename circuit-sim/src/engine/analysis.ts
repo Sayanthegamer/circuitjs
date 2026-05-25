@@ -49,6 +49,13 @@ export class ACSweepEngine {
       return [];
     }
 
+    if (!Number.isFinite(startFreq) || startFreq <= 0 ||
+        !Number.isFinite(endFreq) || endFreq <= 0 ||
+        startFreq >= endFreq ||
+        !Number.isFinite(pointsPerDecade) || pointsPerDecade <= 0) {
+      throw new Error("Invalid frequency sweep bounds or pointsPerDecade");
+    }
+
     // Spacing points logarithmically
     const logStart = Math.log10(startFreq);
     const logEnd = Math.log10(endFreq);
@@ -117,6 +124,9 @@ export class ACSweepEngine {
           const ind = ce as InductorElement;
           if ((ind as any).isCoupled) {
             continue;
+          }
+          if (omega === 0 || !Number.isFinite(omega)) {
+            throw new Error("AC sweep frequency must be greater than zero");
           }
           let B = -1 / (omega * ind.inductance);
           if (ind.seriesResistance > 0) {

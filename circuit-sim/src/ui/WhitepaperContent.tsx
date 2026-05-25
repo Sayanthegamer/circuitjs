@@ -419,6 +419,21 @@ for (const node of postOrderList) {
             in node voltages drops below the convergence threshold: <var className="italic">max<sub>j</sub></var> | <var className="italic">V<sub>j</sub></var> &minus; <var className="italic">V<sub>j,prev</sub></var> | &lt; 10<sup>&minus;6</sup> V.
           </p>
 
+          <div className="relative my-6 p-5 border border-border-hairline bg-indigo-500/5 rounded-sm overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+            <div className="pl-3">
+              <span className="text-[9px] font-mono text-indigo-400 uppercase tracking-widest block mb-1">
+                Implementation Context Note
+              </span>
+              <h4 className="text-xs font-bold text-text-primary tracking-tight font-sans mb-1.5">
+                Theoretical vs. Numerical Modeling
+              </h4>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                While the Shockley equations and Newton-Raphson linearization outlined above represent the standard theoretical model for non-linear diodes in academic literature, the active simulation engine in CircuitSim utilizes a <strong>Piecewise Linear (PWL) model</strong> (detailed in Section 5.1 below). This choice ensures direct alignment with the CBSE/JEE syllabus simplifications and guarantees numerical stability on resource-constrained devices by avoiding exponential overflow.
+              </p>
+            </div>
+          </div>
+
           <h3 className="text-base font-medium text-text-primary mt-8 mb-2">5.1 Piecewise Linear (PWL) Diode (Syllabus & Performance Optimization)</h3>
           <p className="text-text-secondary text-sm leading-relaxed mb-4">
             The standard exponential Shockley equation is highly unstable when simulated with high voltage or frequency AC inputs, 

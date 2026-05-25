@@ -44,6 +44,17 @@ function PropertiesPanelInner({
   const [voltageStr, setVoltageStr] = useState(() =>
     selectedElm.type === 'voltage' ? (selectedElm as VoltageSourceElement).maxVoltage.toString() : ''
   );
+  const [biasStr, setBiasStr] = useState(() =>
+    selectedElm.type === 'voltage' ? (selectedElm as VoltageSourceElement).bias.toString() : '0'
+  );
+  const [dutyCycleStr, setDutyCycleStr] = useState(() =>
+    selectedElm.type === 'voltage' ? (selectedElm as VoltageSourceElement).dutyCycle.toString() : '0.5'
+  );
+  const [pwlPointsStr, setPwlPointsStr] = useState(() => {
+    if (selectedElm.type !== 'voltage') return '';
+    const vs = selectedElm as VoltageSourceElement;
+    return vs.pwlPoints ? vs.pwlPoints.map(p => `${p.t},${p.v}`).join(' ') : '';
+  });
   const [capacitanceStr, setCapacitanceStr] = useState(() =>
     selectedElm.type === 'capacitor' ? (selectedElm as CapacitorElement).capacitance.toString() : ''
   );
@@ -105,9 +116,8 @@ function PropertiesPanelInner({
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handlePropChange = (
-    prop: 'resistance' | 'voltage' | 'capacitance' | 'inductance' | 'closed' | 'waveform' | 'frequency' | 'bf' | 'isNpn' | 'currentValue' | 'vHigh' | 'vLow' | 'vThreshold' | 'propagationDelay' | 'couplingCoefficient' | 'inductance1' | 'inductance2' | 'seriesResistance1' | 'seriesResistance2',
+    prop: 'resistance' | 'voltage' | 'capacitance' | 'inductance' | 'closed' | 'waveform' | 'frequency' | 'bf' | 'isNpn' | 'currentValue' | 'vHigh' | 'vLow' | 'vThreshold' | 'propagationDelay' | 'couplingCoefficient' | 'inductance1' | 'inductance2' | 'seriesResistance1' | 'seriesResistance2' | 'bias' | 'dutyCycle' | 'pwlPoints',
     value: any
   ) => {
     const { pushHistory, saveToLocalStorage } = useCircuitStore.getState();
@@ -117,13 +127,20 @@ function PropertiesPanelInner({
       // eslint-disable-next-line react-hooks/immutability
       (selectedElm as ResistorElement).resistance = value;
 
-    } else if (selectedElm.type === 'voltage' && prop === 'waveform') {
-      (selectedElm as VoltageSourceElement).waveform = value as unknown as 'DC' | 'AC';
-    } else if (selectedElm.type === 'voltage' && prop === 'frequency') {
-      (selectedElm as VoltageSourceElement).frequency = value as number;
-
-    } else if (selectedElm.type === 'voltage' && prop === 'voltage') {
-      (selectedElm as VoltageSourceElement).maxVoltage = value;
+    } else if (selectedElm.type === 'voltage') {
+      if (prop === 'waveform') {
+        (selectedElm as VoltageSourceElement).waveform = value;
+      } else if (prop === 'frequency') {
+        (selectedElm as VoltageSourceElement).frequency = value;
+      } else if (prop === 'voltage') {
+        (selectedElm as VoltageSourceElement).maxVoltage = value;
+      } else if (prop === 'bias') {
+        (selectedElm as VoltageSourceElement).bias = value;
+      } else if (prop === 'dutyCycle') {
+        (selectedElm as VoltageSourceElement).dutyCycle = value;
+      } else if (prop === 'pwlPoints') {
+        (selectedElm as VoltageSourceElement).pwlPoints = value;
+      }
     } else if (selectedElm.type === 'capacitor' && prop === 'capacitance') {
       (selectedElm as CapacitorElement).capacitance = value;
     } else if (selectedElm.type === 'inductor' && prop === 'inductance') {
@@ -233,9 +250,58 @@ function PropertiesPanelInner({
     }
   };
 
-  const commitWaveform = (wf: 'DC' | 'AC') => {
+  const commitWaveform = (wf: 'DC' | 'AC' | 'SQUARE' | 'TRIANGLE' | 'PULSE' | 'PWL') => {
     handlePropChange('waveform', wf);
     setWaveformStr(wf);
+  };
+
+  const commitBias = () => {
+    const val = parseFloat(biasStr);
+    if (isNaN(val)) {
+      setBiasStr((selectedElm as VoltageSourceElement).bias.toString());
+    } else {
+      handlePropChange('bias', val);
+      setBiasStr(val.toString());
+    }
+  };
+
+  const commitDutyCycle = () => {
+    const val = parseFloat(dutyCycleStr);
+    if (isNaN(val) || val < 0 || val > 1) {
+      setDutyCycleStr((selectedElm as VoltageSourceElement).dutyCycle.toString());
+    } else {
+      handlePropChange('dutyCycle', val);
+      setDutyCycleStr(val.toString());
+    }
+  };
+
+  const commitPwlPoints = () => {
+    const parts = pwlPointsStr.trim().split(/\s+/).filter(Boolean);
+    const parsedPoints: { t: number; v: number }[] = [];
+    let valid = true;
+    for (const part of parts) {
+      const subparts = part.split(',');
+      if (subparts.length !== 2) {
+        valid = false;
+        break;
+      }
+      const t = parseFloat(subparts[0]);
+      const v = parseFloat(subparts[1]);
+      if (isNaN(t) || isNaN(v) || t < 0) {
+        valid = false;
+        break;
+      }
+      parsedPoints.push({ t, v });
+    }
+    parsedPoints.sort((a, b) => a.t - b.t);
+
+    if (!valid) {
+      const vs = selectedElm as VoltageSourceElement;
+      setPwlPointsStr(vs.pwlPoints ? vs.pwlPoints.map(p => `${p.t},${p.v}`).join(' ') : '');
+    } else {
+      handlePropChange('pwlPoints', parsedPoints);
+      setPwlPointsStr(parsedPoints.map(p => `${p.t},${p.v}`).join(' '));
+    }
   };
 
   const commitVoltage = () => {
@@ -402,49 +468,51 @@ function PropertiesPanelInner({
             {selectedElm.type === 'voltage' && (
 
               <>
-                {/* Waveform Toggle */}
+                {/* Waveform Dropdown Selector */}
                 <div className="space-y-1.5 group">
                   <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
                     Waveform
                   </label>
-                  <div className="flex border border-border-hairline">
-                    <button
-                      className={`flex-1 py-1.5 text-xs font-mono transition-colors ${waveformStr === 'DC' ? 'bg-primary text-white font-bold' : 'bg-surface-dim text-text-secondary hover:bg-surface-bright'}`}
-                      onClick={() => commitWaveform('DC')}
-                    >
-                      DC
-                    </button>
-                    <button
-                      className={`flex-1 py-1.5 text-xs font-mono transition-colors ${waveformStr === 'AC' ? 'bg-primary text-white font-bold' : 'bg-surface-dim text-text-secondary hover:bg-surface-bright'}`}
-                      onClick={() => commitWaveform('AC')}
-                    >
-                      AC
-                    </button>
-                  </div>
-                </div>
-
-                {/* Max Voltage Input */}
-                <div className="space-y-1.5 group">
-                  <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
-                    {waveformStr === 'AC' ? 'Peak Voltage' : 'Voltage'}
-                  </label>
                   <div className="relative">
-                    <input
-                      type="text"
-                      value={voltageStr}
-                      onChange={(e) => setVoltageStr(e.target.value)}
-                      onBlur={commitVoltage}
-                      onKeyDown={(e) => handleKeyDown(e, commitVoltage)}
-                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
-                      V
-                    </span>
+                    <select
+                      value={waveformStr}
+                      onChange={(e) => commitWaveform(e.target.value as any)}
+                      className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all text-text-primary cursor-pointer"
+                    >
+                      <option value="DC" className="bg-surface-dim text-text-primary">DC</option>
+                      <option value="AC" className="bg-surface-dim text-text-primary">AC</option>
+                      <option value="SQUARE" className="bg-surface-dim text-text-primary">SQUARE</option>
+                      <option value="TRIANGLE" className="bg-surface-dim text-text-primary">TRIANGLE</option>
+                      <option value="PULSE" className="bg-surface-dim text-text-primary">PULSE</option>
+                      <option value="PWL" className="bg-surface-dim text-text-primary">PWL</option>
+                    </select>
                   </div>
                 </div>
 
-                {/* Frequency Input (Only if AC) */}
-                {waveformStr === 'AC' && (
+                {/* Voltage Input (Only if not PWL) */}
+                {waveformStr !== 'PWL' && (
+                  <div className="space-y-1.5 group">
+                    <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                      {waveformStr === 'DC' ? 'Voltage' : 'Peak Voltage'}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={voltageStr}
+                        onChange={(e) => setVoltageStr(e.target.value)}
+                        onBlur={commitVoltage}
+                        onKeyDown={(e) => handleKeyDown(e, commitVoltage)}
+                        className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                        V
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Frequency Input (Only if not DC and not PWL) */}
+                {waveformStr !== 'DC' && waveformStr !== 'PWL' && (
                   <div className="space-y-1.5 group">
                     <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
                       Frequency
@@ -461,6 +529,67 @@ function PropertiesPanelInner({
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
                         Hz
                       </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bias Voltage Input (Only if not DC) */}
+                {waveformStr !== 'DC' && (
+                  <div className="space-y-1.5 group">
+                    <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                      {waveformStr === 'PWL' ? 'Bias / Fallback Voltage' : 'Bias Voltage'}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={biasStr}
+                        onChange={(e) => setBiasStr(e.target.value)}
+                        onBlur={commitBias}
+                        onKeyDown={(e) => handleKeyDown(e, commitBias)}
+                        className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-muted pointer-events-none bg-surface-dim pl-1">
+                        V
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Duty Cycle Input (Only if SQUARE or PULSE) */}
+                {(waveformStr === 'SQUARE' || waveformStr === 'PULSE') && (
+                  <div className="space-y-1.5 group">
+                    <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                      Duty Cycle (0-1)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={dutyCycleStr}
+                        onChange={(e) => setDutyCycleStr(e.target.value)}
+                        onBlur={commitDutyCycle}
+                        onKeyDown={(e) => handleKeyDown(e, commitDutyCycle)}
+                        className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* PWL Points Input (Only if PWL) */}
+                {waveformStr === 'PWL' && (
+                  <div className="space-y-1.5 group">
+                    <label className="text-[9px] text-text-secondary block uppercase font-bold tracking-wider group-hover:text-text-primary transition-colors">
+                      PWL Points (t1,v1 t2,v2 ...)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={pwlPointsStr}
+                        onChange={(e) => setPwlPointsStr(e.target.value)}
+                        onBlur={commitPwlPoints}
+                        onKeyDown={(e) => handleKeyDown(e, commitPwlPoints)}
+                        placeholder="e.g. 0,0 1e-3,5 2e-3,0"
+                        className="w-full bg-surface-dim border border-border-hairline px-3 py-2 font-mono text-xs focus:border-primary/50 outline-none transition-all placeholder:text-text-muted/50"
+                      />
                     </div>
                   </div>
                 )}

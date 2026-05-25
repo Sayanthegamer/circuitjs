@@ -116,7 +116,10 @@ export class VoltageSourceElement extends CircuitElement {
       return;
     }
     if (stamper.isDCOperatingPoint) {
-      const baseV = this.waveform === 'DC' ? this.maxVoltage : this.bias;
+      let baseV = this.waveform === 'DC' ? this.maxVoltage : this.bias;
+      if (this.waveform === 'PWL') {
+        baseV = this.getVoltage(0);
+      }
       const scale = stamper.homotopyScale ?? 1.0;
       stamper.stampVoltageSource(this.nodes[0], this.nodes[1], this.voltSource, baseV * scale);
       return;
@@ -131,7 +134,10 @@ export class VoltageSourceElement extends CircuitElement {
 
   doStep(stamper: IStamper): void {
     if (stamper.isDCOperatingPoint) {
-      const baseV = this.waveform === 'DC' ? this.maxVoltage : this.bias;
+      let baseV = this.waveform === 'DC' ? this.maxVoltage : this.bias;
+      if (this.waveform === 'PWL') {
+        baseV = this.getVoltage(0);
+      }
       const scale = stamper.homotopyScale ?? 1.0;
       stamper.updateVoltageSource(this.nodes[0], this.nodes[1], this.voltSource, baseV * scale);
       return;

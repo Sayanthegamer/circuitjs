@@ -122,7 +122,7 @@ describe('TransformerElement', () => {
     circuit.analyzeCircuit();
 
     // Run sweep at high frequency (1 kHz) where reactances are large
-    const points = ACSweepEngine.runSweep(circuit, 1000, 1000, 1);
+    const points = ACSweepEngine.runSweep(circuit, 1000, 2000, 1);
     expect(points.length).toBeGreaterThan(0);
 
     const pt = points[0];

@@ -233,6 +233,16 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       if (state) {
         get().pushHistory();
         deserializeCircuit(get().circuit, state);
+        
+        // Clear active UI selection states
+        useUIStore.setState({
+          selectedId: null,
+          selectedIds: [],
+          selectionBox: null,
+          hoveredElm: null,
+          hoveredNode: null,
+        });
+
         get().circuit.stopMessage = null;
         get().circuit.analyzeCircuit();
         get().saveToLocalStorage();

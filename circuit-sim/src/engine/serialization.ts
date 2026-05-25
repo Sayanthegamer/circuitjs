@@ -127,11 +127,11 @@ export function deserializeCircuit(circuit: Circuit, jsonStr: string): void {
           break;
         case 'capacitor':
           newElm = new CapacitorElement(elm.x, elm.y, elm.x2, elm.y2, elm.capacitance);
-          if (elm.esr !== undefined) newElm.esr = elm.esr;
+          if (elm.esr !== undefined) newElm.esr = Math.max(0, elm.esr);
           break;
         case 'inductor':
           newElm = new InductorElement(elm.x, elm.y, elm.x2, elm.y2, elm.inductance);
-          if (elm.seriesResistance !== undefined) newElm.seriesResistance = elm.seriesResistance;
+          if (elm.seriesResistance !== undefined) newElm.seriesResistance = Math.max(0, elm.seriesResistance);
           break;
         case 'voltage':
           newElm = new VoltageSourceElement(elm.x, elm.y, elm.x2, elm.y2, elm.maxVoltage);

@@ -186,12 +186,11 @@ It completely omits sharp non-sinusoidal switching states: **Square, Triangle, P
 
 When a continuous time fixed-step integrator (like your Backward Euler or Trapezoidal solver loop) encounters an instantaneous derivative change ($\frac{dv}{dt} \to \infty$) like the falling edge of a digital square wave, the historical state vector overshoots. This creates unphysical high-frequency numerical oscillations (ringing) that degrade accuracy and trigger false non-linear convergence alerts.
 
-```
+```text
 Trapezoidal Ringing without Breakpoints:
     __
    |  |   /\  /\
 ___|  |__/  \/  \/... (Unphysical Numerical Oscillation)
-
 ```
 
 ### Implementation & Optimizations
@@ -239,7 +238,6 @@ export class AdvancedSignalSource extends CircuitElement {
     stamper.updateVoltageSource(this.nodes[0], this.nodes[1], this.voltSource, vOut);
   }
 }
-
 ```
 
 ---
@@ -256,14 +254,13 @@ Adding an explicit internal resistor element to track parasitic resistance intro
 
 Instead of creating physical resistor components, fold the parasitic directly into the reactive time-discretization equation via **Norton/Thevenin matrix transformations** to preserve the overall matrix dimensions.
 
-```
+```text
 Physical Model (Adds an expensive extra internal node):
 Node 0 o----[ Ideal Cap ]----( Internal Node )----[ ESR Resistor ]----o Node 1
 
 Folded Model (Zero additional nodes, mathematical equivalence):
 Node 0 o--------------------[ G_combined ]---------------------------o Node 1
        \--------------------( I_combined )---------------------------/
-
 ```
 
 ### Mathematical Transformation
@@ -317,7 +314,6 @@ export class ParasiticCapacitor extends CircuitElement {
     this.current = (vdiff * this.compG) + this.compI;
   }
 }
-
 ```
 
 ---
@@ -332,10 +328,9 @@ Digital components (AND, OR, NOT, NAND gates) are missing entirely. Simulating l
 
 Digital inputs operate across flat voltage plateaus representing discrete logical boolean states ($0$ and $1$). By treating digital primitives with an event-driven framework, we completely bypass matrix processing for digital sub-blocks if their input logic thresholds have not been broken.
 
-```
+```text
 Analog Input:   /¯¯¯¯\        (Continuously changing, recomputes MNA matrix)
 Digital Output: _____/¯¯¯¯¯   (Bypasses calculations until threshold point occurs)
-
 ```
 
 ### Implementation
@@ -390,12 +385,8 @@ The structural architecture inside `circuit.ts` currently restricts execution to
 | Simulation Mode | Reactive Element Behavior | Core Numerical Objective |
 | --- | --- | --- |
 | **Transient Analysis (Current)** | Continuous Time Companion Integration Models ($R_{eq} \parallel I_{eq}$) | Step-by-step time domain wave tracking ($v(t)$). |
-| **DC Operating Point (DC OP)** | Capacitors $\to$ Open Circuits ($G = 0$)<br>
-
-<br>Inductors $\to$ Short Circuits ($G = \infty$) | Resolve steady-state boundary conditions before starting transient analysis. |
-| **AC Frequency Sweep** | Capacitors $\to$ Complex Admittance $j\omega C$<br>
-
-<br>Inductors $\to$ Complex Impedance $j\omega L$ | Compute linear frequency responses and map system Bode Plots ($H(j\omega)$). |
+| **DC Operating Point (DC OP)** | Capacitors $\to$ Open Circuits ($G = 0$)<br>Inductors $\to$ Short Circuits ($G = \infty$) | Resolve steady-state boundary conditions before starting transient analysis. |
+| **AC Frequency Sweep** | Capacitors $\to$ Complex Admittance $j\omega C$ <br>Inductors $\to$ Complex Impedance $j\omega L$ | Compute linear frequency responses and map system Bode Plots ($H(j\omega)$). |
 
 ---
 
@@ -693,4 +684,4 @@ export class MutualCouplingElement extends CircuitElement {
 
 ```
 
-*Note: For this configuration to work flawlessly, ensure that when `MutualCouplingElement` is active in the circuit array, the standard isolated `stamp` calls inside the target `InductorElement` objects are bypassed or skipped. Otherwise, they will double-stamp self-conductance parameters and break accuracy equations.*
+*Note: For this configuration to work flawlessly, ensure that when `MutualCouplingElement` is active in the circuit array, the standard isolated `stamp` calls inside the target `InductorElement` objects are bypassed or skipped. Otherwise, they will double-stamp self-conductance parameters and break accuracy equations.*

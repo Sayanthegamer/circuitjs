@@ -742,8 +742,8 @@ export function drawLogicGate(
     const p1 = getPt(-len / 2, 10);
     const p2 = getPt(len / 2, 0);
     drawPost(ctx, p0.x, p0.y, elm.volts[0], selected, hoveredNode === 0);
-    drawPost(ctx, p1.x, p1.y, elm.volts[1], selected, hoveredNode === 0);
-    drawPost(ctx, p2.x, p2.y, elm.volts[2], selected, hoveredNode === 1);
+    drawPost(ctx, p1.x, p1.y, elm.volts[1], selected, hoveredNode === 1);
+    drawPost(ctx, p2.x, p2.y, elm.volts[2], selected, hoveredNode === 2);
   }
 }
 
@@ -806,9 +806,9 @@ export function drawTransformer(
   const horizontal = Math.abs(elm.x2 - elm.x) > Math.abs(elm.y2 - elm.y);
 
   // Core coordinate calculations
-  let bx1 = 0, by1 = 0, bx2 = 0, by2 = 0;
-  let cx1 = 0, cy1 = 0, cx2 = 0, cy2 = 0;
-  let dirX = 0, dirY = 0;
+  let bx1: number, by1: number, bx2: number, by2: number;
+  let cx1: number, cy1: number, cx2: number, cy2: number;
+  let dirX: number, dirY: number;
 
   if (horizontal) {
     bx1 = elm.x;  by1 = elm.y - 10;
