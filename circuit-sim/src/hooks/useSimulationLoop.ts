@@ -28,14 +28,29 @@ export function useSimulationLoop(
     y: 0,
     x2: 0,
     y2: 0,
-    volts: [0, 0, 0],
-    nodes: [0, 0, 0],
+    volts: [0, 0, 0, 0, 0],
+    nodes: [0, 0, 0, 0, 0],
     getCurrent: () => 0,
     getPostCount(this: any) {
+      if (this.type === 'transformer') return 4;
       if (this.type === 'bjt') return 3;
       return 2;
     },
     getPost(this: any, n: number) {
+      if (this.type === 'transformer') {
+        const horizontal = Math.abs(this.x2 - this.x) > Math.abs(this.y2 - this.y);
+        if (horizontal) {
+          if (n === 0) return { x: this.x, y: this.y - 16 };  // Primary +
+          if (n === 1) return { x: this.x, y: this.y + 16 };  // Primary -
+          if (n === 2) return { x: this.x2, y: this.y2 - 16 }; // Secondary +
+          return { x: this.x2, y: this.y2 + 16 };             // Secondary -
+        } else {
+          if (n === 0) return { x: this.x - 16, y: this.y };  // Primary +
+          if (n === 1) return { x: this.x + 16, y: this.y };  // Primary -
+          if (n === 2) return { x: this.x2 - 16, y: this.y2 }; // Secondary +
+          return { x: this.x2 + 16, y: this.y2 };             // Secondary -
+        }
+      }
       if (this.type === 'bjt') {
         const horizontal = Math.abs(this.x2 - this.x) > Math.abs(this.y2 - this.y);
         if (horizontal) {

@@ -55,18 +55,22 @@ export class TransformerElement extends CircuitElement {
   }
 
   stamp(stamper: IStamper): void {
-    const L1 = this.inductance1;
-    const L2 = this.inductance2;
-    const Rs1 = this.seriesResistance1;
-    const Rs2 = this.seriesResistance2;
+    if (this.nodes.length < 4) return;
+    const [n1a, n1b, n2a, n2b] = this.nodes;
+    if (n1a === undefined || n1b === undefined || n2a === undefined || n2b === undefined) return;
+
+    const L1 = Math.max(1e-9, this.inductance1);
+    const L2 = Math.max(1e-9, this.inductance2);
+    const Rs1 = Math.max(0, this.seriesResistance1);
+    const Rs2 = Math.max(0, this.seriesResistance2);
 
     const kClamped = Math.min(0.99999, Math.max(-0.99999, this.couplingCoefficient));
     const M = kClamped * Math.sqrt(L1 * L2);
 
     if (stamper.isDCOperatingPoint) {
       // In DC operating point, inductors are modeled as their series resistances.
-      stamper.stampResistor(this.nodes[0], this.nodes[1], Math.max(1e-6, Rs1));
-      stamper.stampResistor(this.nodes[2], this.nodes[3], Math.max(1e-6, Rs2));
+      stamper.stampResistor(n1a, n1b, Math.max(1e-6, Rs1));
+      stamper.stampResistor(n2a, n2b, Math.max(1e-6, Rs2));
       return;
     }
 
@@ -87,7 +91,7 @@ export class TransformerElement extends CircuitElement {
       const rImag = omega * (L1 * Rs2 + L2 * Rs1);
       const den = rReal * rReal + rImag * rImag;
 
-      if (den === 0) return;
+      if (isNaN(den) || den === 0) return;
 
       const g11 = (Rs2 * rReal + omega * L2 * rImag) / den;
       const b11 = (omega * L2 * rReal - Rs2 * rImag) / den;
@@ -97,8 +101,6 @@ export class TransformerElement extends CircuitElement {
 
       const g12 = (-omega * M * rImag) / den;
       const b12 = (-omega * M * rReal) / den;
-
-      const [n1a, n1b, n2a, n2b] = this.nodes;
 
       stamper.stampConductance(n1a, n1b, g11);
       stamper.stampConductance(n2a, n2b, g22);
@@ -137,13 +139,11 @@ export class TransformerElement extends CircuitElement {
     const Rtot12 = ReqM;
 
     const det = Rtot11 * Rtot22 - Rtot12 * Rtot12;
-    if (det === 0) return;
+    if (isNaN(det) || det === 0) return;
 
     this.g11 = Rtot22 / det;
     this.g22 = Rtot11 / det;
     this.g12 = -Rtot12 / det;
-
-    const [n1a, n1b, n2a, n2b] = this.nodes;
 
     stamper.stampConductance(n1a, n1b, this.g11);
     stamper.stampConductance(n2a, n2b, this.g22);
@@ -165,6 +165,7 @@ export class TransformerElement extends CircuitElement {
   }
 
   startIteration(): void {
+    if (this.nodes.length < 4 || this.volts.length < 4) return;
     const Rs1 = this.seriesResistance1;
     const Rs2 = this.seriesResistance2;
 
@@ -192,12 +193,14 @@ export class TransformerElement extends CircuitElement {
   }
 
   doStep(stamper: IStamper): void {
+    if (this.nodes.length < 4) return;
     if (stamper.isDCOperatingPoint || stamper.isACSweep) return;
     stamper.stampCurrentSource(this.nodes[0], this.nodes[1], this.iComp1);
     stamper.stampCurrentSource(this.nodes[2], this.nodes[3], this.iComp2);
   }
 
   calculateCurrent(): void {
+    if (this.volts.length < 4) return;
     const v1 = this.volts[0] - this.volts[1];
     const v2 = this.volts[2] - this.volts[3];
 
