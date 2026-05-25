@@ -52,13 +52,12 @@ export class CapacitorElement extends CircuitElement {
   startIteration(): void {
     const vdiff = this.volts[0] - this.volts[1];
     const isEuler = this.lastIsEuler;
-    const vIdeal = vdiff - this.current * this.esr;
-    const rIdeal = this.compResistance - this.esr;
+    const vIdeal = vdiff - 2.0 * this.current * this.esr;
 
     if (isEuler) {
-      this.currentSourceValue = vIdeal / this.compResistance;
+      this.currentSourceValue = (vdiff - this.current * this.esr) / this.compResistance;
     } else {
-      this.currentSourceValue = (vIdeal + this.current * rIdeal) / this.compResistance;
+      this.currentSourceValue = (vIdeal / this.compResistance) + this.current;
     }
   }
 

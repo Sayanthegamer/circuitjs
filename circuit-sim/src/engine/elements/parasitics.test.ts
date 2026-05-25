@@ -60,10 +60,32 @@ describe('Component Parasitics (ESR & Winding Resistance)', () => {
       circuit.analyzeCircuit();
 
       // At t = 0+, since V_C is 0, the current should be limited only by ESR:
-      // I = V_source / R_esr = 10V / 2 Ohm = 5 A.
-      // Let's verify:
       circuit.runStep();
       expect(cap.getCurrent()).toBeCloseTo(5.0, 2);
+    });
+
+    it('converges to 0 current in steady state under constant DC voltage', () => {
+      // Connect 1uF capacitor with 2 Ohm ESR directly to 10V source
+      const vs = new VoltageSourceElement(0, 0, 0, 10, 10);
+      const cap = new CapacitorElement(0, 10, 10, 10, 1e-6); // 1uF
+      cap.esr = 2.0; // 2 Ohms ESR
+      const wire = new WireElement(10, 10, 0, 0); // complete loop
+      const ground = new GroundElement(0, 0);
+
+      circuit.addElement(vs);
+      circuit.addElement(cap);
+      circuit.addElement(wire);
+      circuit.addElement(ground);
+
+      circuit.maxTimeStep = 1e-5; // 10us steps
+      circuit.analyzeCircuit();
+
+      for (let i = 0; i < 20; i++) {
+        circuit.runStep();
+      }
+
+      // At steady state, the capacitor should be fully charged to 10V, and current should be 0.
+      expect(cap.getCurrent()).toBeCloseTo(0.0, 4);
     });
   });
 

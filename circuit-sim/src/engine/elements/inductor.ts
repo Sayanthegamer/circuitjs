@@ -62,16 +62,12 @@ export class InductorElement extends CircuitElement {
     const vdiff = this.volts[0] - this.volts[1];
     const isEuler = this.lastIsEuler;
     const rIdeal = this.compResistance - this.seriesResistance;
+    const vIdeal = vdiff - 2.0 * this.current * this.seriesResistance;
 
     if (isEuler) {
-      // In Backward Euler: I_comp_ideal = I_prev.
-      // Norton scale: I_comp_norton = I_prev * R_ideal / R_comp
       this.currentSourceValue = this.current * (rIdeal / this.compResistance);
     } else {
-      // In Trapezoidal: I_comp_ideal = V_ideal_prev / R_ideal + I_prev
-      // Norton scale: I_comp_norton = (V_ideal_prev + I_prev * R_ideal) / R_comp
-      const vIdeal = vdiff - this.current * this.seriesResistance;
-      this.currentSourceValue = (vIdeal + this.current * rIdeal) / this.compResistance;
+      this.currentSourceValue = (vIdeal / this.compResistance) + this.current;
     }
   }
 
