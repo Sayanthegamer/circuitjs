@@ -31,6 +31,7 @@ export class TransformerElement extends CircuitElement {
   private Req2 = 0;
   private ReqM = 0;
   private lastIsEuler = false;
+  private lastIsDCOp = false;
 
   constructor(x: number, y: number, x2: number, y2: number) {
     super(x, y, x2, y2);
@@ -38,6 +39,12 @@ export class TransformerElement extends CircuitElement {
 
   getPostCount(): number { return 4; }
   getVoltageSourceCount(): number { return 0; }
+
+  getConnection(n1: number, n2: number): boolean {
+    if ((n1 === 0 || n1 === 1) && (n2 === 0 || n2 === 1)) return true;
+    if ((n1 === 2 || n1 === 3) && (n2 === 2 || n2 === 3)) return true;
+    return false;
+  }
 
   getPost(n: number): { x: number; y: number } {
     const horizontal = Math.abs(this.x2 - this.x) > Math.abs(this.y2 - this.y);
@@ -58,6 +65,8 @@ export class TransformerElement extends CircuitElement {
     if (this.nodes.length < 4) return;
     const [n1a, n1b, n2a, n2b] = this.nodes;
     if (n1a === undefined || n1b === undefined || n2a === undefined || n2b === undefined) return;
+
+    this.lastIsDCOp = !!stamper.isDCOperatingPoint;
 
     const L1 = Math.max(1e-9, this.inductance1);
     const L2 = Math.max(1e-9, this.inductance2);
@@ -203,6 +212,14 @@ export class TransformerElement extends CircuitElement {
     if (this.volts.length < 4) return;
     const v1 = this.volts[0] - this.volts[1];
     const v2 = this.volts[2] - this.volts[3];
+
+    if (this.lastIsDCOp) {
+      const Rs1 = Math.max(1e-6, this.seriesResistance1);
+      const Rs2 = Math.max(1e-6, this.seriesResistance2);
+      this.current = v1 / Rs1;
+      this.current2 = v2 / Rs2;
+      return;
+    }
 
     this.current = this.g11 * v1 + this.g12 * v2 + this.iComp1;
     this.current2 = this.g12 * v1 + this.g22 * v2 + this.iComp2;
