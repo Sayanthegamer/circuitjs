@@ -871,7 +871,8 @@ export function drawMutualCoupling(
   ctx.font = 'bold 9px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText(`k = ${elm.couplingCoefficient.toFixed(2)}`, cx, cy + size + 4);
+  const k = elm.couplingCoefficient !== undefined ? elm.couplingCoefficient : 0.99;
+  ctx.fillText(`k = ${k.toFixed(2)}`, cx, cy + size + 4);
 
   ctx.restore();
 }
