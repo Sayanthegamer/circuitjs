@@ -96,4 +96,12 @@ describe('CurrentSourceElement', () => {
     expect(cs.getCurrent()).toBe(0.005);
     expect(r.getCurrent()).toBeCloseTo(0.005, 3);
   });
+
+  it('does not cause singular matrix when unconnected', () => {
+    const circuit = new Circuit();
+    const cs = new CurrentSourceElement(0, 0, 100, 0, 0.002);
+    circuit.addElement(cs);
+    circuit.analyzeCircuit();
+    expect(circuit.stopMessage).toBeNull();
+  });
 });

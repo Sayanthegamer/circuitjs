@@ -86,6 +86,7 @@ export class Circuit implements IStamper {
   isBackwardEuler = true;
   isDCOperatingPoint = false;
   isACSweep = false;
+  homotopyScale?: number;
 
   // Telemetry variables for the MatrixInspector / Solver visualizer
   lastG: number[][] = [];
@@ -633,6 +634,7 @@ export class Circuit implements IStamper {
     }
     this.circuitNeedsMap = false;
 
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     // Pre-pass for coupled inductors: reset isCoupled flag
     for (const ce of this.elements) {
       if (ce.type === 'inductor') {
@@ -659,6 +661,7 @@ export class Circuit implements IStamper {
         }
       }
     }
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     // Stamp all elements
     for (const ce of this.elements) {
@@ -863,6 +866,20 @@ export class Circuit implements IStamper {
     // Save node voltages for potential rollback
     copyVector(this.nodeVoltages, this.lastNodeVoltages, this.nodeVoltages.length);
 
+    // Overload safety check: stop simulation if voltages/currents exceed safe limits
+    for (let j = 0; j < this.nodeVoltages.length; j++) {
+      if (Math.abs(this.nodeVoltages[j]) > 1000.0) {
+        this.stop("Overload: Voltage exceeds 1000V limit!");
+        return false;
+      }
+    }
+    for (const ce of this.elements) {
+      if (Math.abs(ce.getCurrent()) > 50.0) {
+        this.stop("Overload: Current exceeds 50A limit!");
+        return false;
+      }
+    }
+
     return true;
   }
 
@@ -886,7 +903,7 @@ export class Circuit implements IStamper {
 
     for (let step = 0; step <= steps; step++) {
       const kappa = step / steps;
-      (this as any).homotopyScale = kappa;
+      this.homotopyScale = kappa;
 
       this.stampCircuit();
 
@@ -962,7 +979,7 @@ export class Circuit implements IStamper {
     this.isACSweep = oldACSweep;
     this.timeStep = oldTimeStep;
     this.isBackwardEuler = oldBackwardEuler;
-    delete (this as any).homotopyScale;
+    this.homotopyScale = undefined;
 
     this.stampCircuit();
 

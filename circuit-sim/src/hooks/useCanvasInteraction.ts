@@ -57,6 +57,7 @@ export function useCanvasInteraction(
   const activePointers = useRef(new Map<number, PointerSnapshot>());
   const lastPinchDist = useRef<number | null>(null);
   const dragStartCoords = useRef<{ x: number, y: number, ex: number, ey: number, ex2: number, ey2: number } | null>(null);
+  const selectionBoxStart = useRef<{ x: number, y: number } | null>(null);
 
   const getWorldPos = useCallback((e: React.PointerEvent) => {
     const canvas = canvasRef.current;
@@ -171,9 +172,19 @@ export function useCanvasInteraction(
         } else {
           setSelectedId(null);
           setDraggingState(null, null);
-          // Start panning on empty space with select tool
+          // Start selection box on empty space if left clicked, or pan if not left click
           if (!dragStartCoords.current) {
-             camera.startPan(e.clientX - rect.left, e.clientY - rect.top);
+            if (e.pointerType === 'mouse' ? e.button === 0 : e.isPrimary) {
+              selectionBoxStart.current = { x: world.x, y: world.y };
+              useUIStore.getState().setSelectionBox({
+                x1: world.x,
+                y1: world.y,
+                x2: world.x,
+                y2: world.y,
+              });
+            } else {
+              camera.startPan(e.clientX - rect.left, e.clientY - rect.top);
+            }
           }
         }
       } else if (tool === 'ground') {
@@ -283,6 +294,37 @@ export function useCanvasInteraction(
 
     // Single pointer move
 
+    // Selection box dragging
+    if (selectionBoxStart.current) {
+      const world = getWorldPos(e);
+      const start = selectionBoxStart.current;
+      useUIStore.getState().setSelectionBox({
+        x1: start.x,
+        y1: start.y,
+        x2: world.x,
+        y2: world.y,
+      });
+
+      const boxMinX = Math.min(start.x, world.x);
+      const boxMaxX = Math.max(start.x, world.x);
+      const boxMinY = Math.min(start.y, world.y);
+      const boxMaxY = Math.max(start.y, world.y);
+
+      const selectedIds: string[] = [];
+      for (const elm of circuit.elements) {
+        const minX = Math.min(elm.x, elm.x2);
+        const maxX = Math.max(elm.x, elm.x2);
+        const minY = Math.min(elm.y, elm.y2);
+        const maxY = Math.max(elm.y, elm.y2);
+
+        if (minX <= boxMaxX && maxX >= boxMinX && minY <= boxMaxY && maxY >= boxMinY) {
+          selectedIds.push(elm.id);
+        }
+      }
+      useUIStore.getState().setSelectedIds(selectedIds);
+      return;
+    }
+
     // Panning
     if (camera.panning) {
       if (activePointers.current.size === 1 || e.pointerType === 'mouse') {
@@ -351,6 +393,14 @@ export function useCanvasInteraction(
 
     const { camera, circuit } = useCircuitStore.getState();
     const { placing, setPlacing, setSelectedId, draggingElmId, setDraggingState } = useUIStore.getState();
+
+    // Finish selection box
+    if (selectionBoxStart.current) {
+      selectionBoxStart.current = null;
+      useUIStore.getState().setSelectionBox(null);
+      return;
+    }
+
     if (draggingElmId) {
       const { saveToLocalStorage } = useCircuitStore.getState();
       circuit.analyzeCircuit();

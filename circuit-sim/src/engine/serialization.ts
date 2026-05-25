@@ -49,6 +49,8 @@ export interface SerializedElement {
   inductance2?: number;
   seriesResistance1?: number;
   seriesResistance2?: number;
+  forwardVoltage?: number;
+  zenerVoltage?: number;
 }
 
 export interface SerializedCircuit {
@@ -84,6 +86,10 @@ export function serializeCircuit(circuit: Circuit): string {
       base.closed = elm.closed;
     } else if (elm instanceof LEDElement) {
       base.color = elm.color;
+      base.forwardVoltage = elm.forwardVoltage;
+    } else if (elm instanceof DiodeElement) {
+      base.forwardVoltage = elm.forwardVoltage;
+      base.zenerVoltage = elm.zenerVoltage;
     } else if (elm instanceof BJTElement) {
       base.isNpn = elm.isNpn;
       base.bf = elm.bf;
@@ -141,10 +147,13 @@ export function deserializeCircuit(circuit: Circuit, jsonStr: string): void {
           break;
         case 'diode':
           newElm = new DiodeElement(elm.x, elm.y, elm.x2, elm.y2);
+          if (elm.forwardVoltage !== undefined) newElm.forwardVoltage = elm.forwardVoltage;
+          if (elm.zenerVoltage !== undefined) newElm.zenerVoltage = elm.zenerVoltage;
           break;
         case 'led':
           newElm = new LEDElement(elm.x, elm.y, elm.x2, elm.y2);
           if (elm.color) newElm.color = elm.color;
+          if (elm.forwardVoltage !== undefined) newElm.forwardVoltage = elm.forwardVoltage;
           break;
         case 'bjt':
           newElm = new BJTElement(elm.x, elm.y, elm.x2, elm.y2, elm.isNpn ?? true);

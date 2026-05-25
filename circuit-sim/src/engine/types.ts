@@ -152,6 +152,7 @@ export interface IStamper {
   isBackwardEuler?: boolean;
   isDCOperatingPoint?: boolean;
   isACSweep?: boolean;
+  homotopyScale?: number;
 }
 
 export interface SimulationState {

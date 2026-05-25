@@ -280,5 +280,37 @@ describe('Circuit', () => {
 
       luFactorSpy.mockRestore();
     });
+
+    it('halts on voltage overload (>1000V)', () => {
+      const localCircuit = new Circuit();
+      const vs = new VoltageSourceElement(0, 0, 0, 10, 1500); // 1500V DC voltage source
+      const r = new ResistorElement(0, 10, 10, 10, 100);
+      const ground = new GroundElement(0, 10);
+
+      localCircuit.addElement(vs);
+      localCircuit.addElement(r);
+      localCircuit.addElement(ground);
+      localCircuit.analyzeCircuit();
+
+      const result = localCircuit.runStep();
+      expect(result).toBe(false);
+      expect(localCircuit.stopMessage).toBe('Overload: Voltage exceeds 1000V limit!');
+    });
+
+    it('halts on current overload (>50A)', () => {
+      const localCircuit = new Circuit();
+      const vs = new VoltageSourceElement(0, 0, 0, 10, 10); // 10V DC source
+      const r = new ResistorElement(0, 0, 0, 10, 0.1); // 0.1 ohm resistor -> 100A current!
+      const ground = new GroundElement(0, 10);
+
+      localCircuit.addElement(vs);
+      localCircuit.addElement(r);
+      localCircuit.addElement(ground);
+      localCircuit.analyzeCircuit();
+
+      const result = localCircuit.runStep();
+      expect(result).toBe(false);
+      expect(localCircuit.stopMessage).toBe('Overload: Current exceeds 50A limit!');
+    });
   });
 });

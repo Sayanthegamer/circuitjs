@@ -15,13 +15,16 @@ export class CurrentSourceElement extends CircuitElement {
     // Call stampRightSide to mark the rows as changing.
     stamper.stampRightSide(this.nodes[0]);
     stamper.stampRightSide(this.nodes[1]);
+
+    // Add tiny shunt conductance to prevent singular matrix when unconnected/floating
+    stamper.stampConductance(this.nodes[0], this.nodes[1], 1e-9);
   }
 
   doStep(stamper: IStamper): void {
     if (stamper.isACSweep) {
       return;
     }
-    const scale = (stamper as any).homotopyScale ?? 1.0;
+    const scale = stamper.homotopyScale ?? 1.0;
     // Inject the constant current directly into the RHS.
     // Node 0 is source (leaves node), Node 1 is sink (enters node).
     stamper.stampCurrentSource(this.nodes[0], this.nodes[1], this.currentValue * scale);
