@@ -9,13 +9,12 @@ import {
 import { Toolbar } from './ui/Toolbar';
 import { MobileToolbar } from './ui/MobileToolbar';
 import { PropertiesPanel } from './ui/PropertiesPanel';
-import { MobilePropertiesPanel } from './ui/MobilePropertiesPanel';
 import { Plotter } from './ui/Plotter';
 import { ComponentPalette } from './ui/ComponentPalette';
-import { MobileComponentPalette } from './ui/MobileComponentPalette';
 import { SideNavBar } from './ui/SideNavBar';
 import NodeHUD from './ui/NodeHUD';
 import { WhitepaperContent } from './ui/WhitepaperContent';
+import { PWAInstallPrompt } from './ui/PWAInstallPrompt';
 import { useSimulationLoop } from './hooks/useSimulationLoop';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -29,16 +28,19 @@ function App() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Breakpoint detection
-  const { isDesktop } = useBreakpoint();
+  const { isDesktop, isLandscape } = useBreakpoint();
 
   // Zustand Store values
   const viewMode = useUIStore((s) => s.viewMode);
   const setViewMode = useUIStore((s) => s.setViewMode);
   const tool = useUIStore((s) => s.tool);
-  const plotterMinimized = useUIStore((s) => s.plotterMinimized);
-  const plotterRef = useCircuitStore((s) => s.plotterRef);
   const camera = useCircuitStore((s) => s.camera);
+  const plotterRef = useCircuitStore((s) => s.plotterRef);
   const stopMessage = useCircuitStore((s) => s.stopMessage);
+
+  // Mobile Store values
+  const mobileDockHeight = useUIStore((s) => s.mobileDockHeight);
+  const activeMobileTab = useUIStore((s) => s.activeMobileTab);
 
   // Synchronize viewMode with URL search parameters for SEO crawler support
   useEffect(() => {
@@ -114,13 +116,13 @@ function App() {
     canvas.style.height = `${rect.height}px`;
   }, []);
 
-  // Recalculate size when viewMode changes
+  // Recalculate size when viewMode, mobile height, or active tab changes
   useEffect(() => {
     const timer = setTimeout(() => {
       resizeCanvas();
-    }, 50);
+    }, 150); // Slightly longer delay to allow CSS transitions to complete
     return () => clearTimeout(timer);
-  }, [viewMode, resizeCanvas]);
+  }, [viewMode, mobileDockHeight, activeMobileTab, resizeCanvas]);
 
   // Resize listener
   useEffect(() => {
@@ -175,6 +177,13 @@ function App() {
   const handlers = useCanvasInteraction(canvasRef);
   useKeyboardShortcuts();
 
+  // Collapse mobile dock when rotating sideways to landscape
+  useEffect(() => {
+    if (!isDesktop && isLandscape && mobileDockHeight !== 'collapsed') {
+      useUIStore.getState().setMobileDockHeight('collapsed');
+    }
+  }, [isDesktop, isLandscape, mobileDockHeight]);
+
   // Close mobile menu when switching to desktop viewport
   useEffect(() => {
     if (isDesktop) {
@@ -209,7 +218,6 @@ function App() {
 
       {/* Float HUD card on hovered element */}
       <NodeHUD />
-
       {/* Overload Warning Banner Overlay */}
       {stopMessage && (
         <div className="absolute inset-0 bg-[#0a0a0f]/80 backdrop-blur-xs flex items-center justify-center p-6 z-40 transition-all duration-300">
@@ -280,14 +288,28 @@ function App() {
     </div>
   );
 
+  // Dynamic bottom padding to make sure the canvas does not get cut off by bottom dock
+  const paddingBottomClass = isDesktop
+    ? 'pb-[40px]' // Desktop plotter min height
+    : (isLandscape
+        ? 'pb-[42px]' // Landscape collapsed plotter
+        : (mobileDockHeight === 'collapsed'
+            ? 'pb-[42px]'
+            : mobileDockHeight === 'medium'
+              ? 'pb-[250px]'
+              : 'pb-[400px]'));
+
   return (
     <div className="flex flex-col h-screen bg-surface-dim text-text-primary overflow-hidden font-sans">
       {/* Top Toolbar - Desktop vs Mobile */}
       {isDesktop ? <Toolbar /> : <MobileToolbar />}
 
-      <div className="flex flex-1 overflow-hidden pt-12 lg:pt-[46px] pb-[40px]">
-        {/* Left Sidebar (Documentation Navigation & Component Palette) - Desktop only */}
-        <aside className="hidden lg:flex w-[280px] flex-shrink-0 border-r border-border-hairline bg-surface flex flex-col h-full overflow-hidden">
+      {/* Main layout container with dynamic padding for bottom control dock */}
+      <div className={`flex flex-1 overflow-hidden pt-12 lg:pt-[46px] transition-all duration-300 ${paddingBottomClass}`}>
+        
+        {/* Left Sidebar (Documentation Navigation & Component Palette) */}
+        {/* Desktop OR landscape mobile/tablet can show side panel */}
+        <aside className={`hidden lg:flex w-[280px] flex-shrink-0 border-r border-border-hairline bg-surface flex-col h-full overflow-hidden ${!isDesktop && isLandscape ? '!flex w-[200px]' : ''}`}>
           {viewMode === 'whitepaper' && <SideNavBar />}
           <div className={`flex-1 overflow-y-auto ${viewMode === 'whitepaper' ? 'border-t border-border-hairline' : ''}`}>
             <div className="px-4 py-2.5 text-[9px] uppercase tracking-[0.2em] text-text-muted font-bold font-mono">
@@ -311,21 +333,19 @@ function App() {
           </main>
         )}
 
-        {/* Right Sidebar (Properties Panel) - Desktop only */}
-        <aside className="hidden lg:flex w-[320px] flex-shrink-0 border-l border-border-hairline bg-surface flex flex-col h-full overflow-y-auto no-scrollbar">
+        {/* Right Sidebar (Properties Panel) */}
+        {/* Desktop OR landscape mobile/tablet can show side panel */}
+        <aside className={`hidden lg:flex w-[320px] flex-shrink-0 border-l border-border-hairline bg-surface flex-col h-full overflow-y-auto no-scrollbar ${!isDesktop && isLandscape ? '!flex w-[240px]' : ''}`}>
           <PropertiesPanel />
         </aside>
       </div>
 
-      {/* Mobile Bottom Component Palette Sheet */}
-      {!isDesktop && <MobileComponentPalette />}
-
-      {/* Mobile Properties Panel */}
-      {!isDesktop && <MobilePropertiesPanel />}
+      {/* Floating PWA Install Prompt Banner */}
+      {!isDesktop && <PWAInstallPrompt />}
 
       {/* Quick hint instructions for placing/deleting (rendered globally above plotter) */}
       {tool !== 'select' && (
-        <div className={`fixed ${plotterMinimized ? 'bottom-[60px]' : 'bottom-[180px] md:bottom-[260px]'} left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-surface border border-border-hairline text-xs font-mono text-text-primary shadow-xl transition-all`}>
+        <div className={`fixed ${isDesktop ? 'bottom-[60px]' : (mobileDockHeight === 'collapsed' ? 'bottom-[60px]' : (mobileDockHeight === 'medium' ? 'bottom-[270px]' : 'bottom-[420px]'))} left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-surface border border-border-hairline text-xs font-mono text-text-primary shadow-xl transition-all duration-300`}>
           {tool === 'ground'
             ? 'Click canvas to place ground reference node'
             : `Click and drag on canvas to place ${tool}`
@@ -333,7 +353,7 @@ function App() {
         </div>
       )}
 
-      {/* Bottom Panel: Oscilloscope View & Solver Telemetry */}
+      {/* Bottom Panel: Unified Mobile Control Dock (Portrait) or Collapsed Oscilloscope View (Landscape/Desktop) */}
       <Plotter ref={plotterRef} />
     </div>
   );
