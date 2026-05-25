@@ -33,10 +33,63 @@ function App() {
 
   // Zustand Store values
   const viewMode = useUIStore((s) => s.viewMode);
+  const setViewMode = useUIStore((s) => s.setViewMode);
   const tool = useUIStore((s) => s.tool);
   const plotterMinimized = useUIStore((s) => s.plotterMinimized);
   const plotterRef = useCircuitStore((s) => s.plotterRef);
   const camera = useCircuitStore((s) => s.camera);
+
+  // Synchronize viewMode with URL search parameters for SEO crawler support
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlView = params.get('view');
+    
+    if (urlView === 'whitepaper' || urlView === 'workspace') {
+      if (urlView !== viewMode) {
+        setViewMode(urlView);
+      }
+    } else {
+      // Initialize query parameter if not present
+      params.set('view', viewMode);
+      window.history.replaceState(null, '', `?${params.toString()}${window.location.hash}`);
+    }
+
+    const handlePopState = () => {
+      const currentParams = new URLSearchParams(window.location.search);
+      const currentUrlView = currentParams.get('view');
+      if (currentUrlView === 'whitepaper' || currentUrlView === 'workspace') {
+        if (currentUrlView !== useUIStore.getState().viewMode) {
+          useUIStore.getState().setViewMode(currentUrlView);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlView = params.get('view');
+    if (urlView !== viewMode) {
+      params.set('view', viewMode);
+      window.history.pushState(null, '', `?${params.toString()}${window.location.hash}`);
+    }
+  }, [viewMode]);
+
+  // Handle hash scrolling on page load/view switch for the whitepaper documentation
+  useEffect(() => {
+    if (viewMode === 'whitepaper' && window.location.hash) {
+      const hashId = window.location.hash.substring(1);
+      const timer = setTimeout(() => {
+        const element = document.getElementById(hashId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [viewMode]);
 
   // Canvas Sizing
   const resizeCanvas = useCallback(() => {
