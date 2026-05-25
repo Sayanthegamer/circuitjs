@@ -17,8 +17,8 @@ import { useCircuitStore } from '../stores/circuitStore';
 export const Toolbar: React.FC = () => {
   const tool = useUIStore((s) => s.tool);
   const setTool = useUIStore((s) => s.setTool);
-  const selectedId = useUIStore((s) => s.selectedId);
-  const setSelectedId = useUIStore((s) => s.setSelectedId);
+  const selectedIds = useUIStore((s) => s.selectedIds) || [];
+  const setSelectedIds = useUIStore((s) => s.setSelectedIds);
   const showValues = useUIStore((s) => s.showValues);
   const setShowValues = useUIStore((s) => s.setShowValues);
   const viewMode = useUIStore((s) => s.viewMode);
@@ -40,13 +40,15 @@ export const Toolbar: React.FC = () => {
   };
 
   const handleDelete = () => {
-    if (selectedId) {
+    if (selectedIds.length > 0) {
       const { circuit, pushHistory, saveToLocalStorage } = useCircuitStore.getState();
       pushHistory();
-      circuit.removeElement(selectedId);
+      for (const id of selectedIds) {
+        circuit.removeElement(id);
+      }
       circuit.analyzeCircuit();
       saveToLocalStorage();
-      setSelectedId(null);
+      setSelectedIds([]);
     }
   };
 
@@ -182,8 +184,8 @@ export const Toolbar: React.FC = () => {
           </button>
           <button
             onClick={handleDelete}
-            disabled={!selectedId}
-            className={`p-1.5 transition-colors focus:outline-none rounded-none ${selectedId ? 'text-voltage-neg hover:bg-surface-bright/50 cursor-pointer' : 'text-text-muted opacity-40 cursor-not-allowed'}`}
+            disabled={selectedIds.length === 0}
+            className={`p-1.5 transition-colors focus:outline-none rounded-none ${selectedIds.length > 0 ? 'text-voltage-neg hover:bg-surface-bright/50 cursor-pointer' : 'text-text-muted opacity-40 cursor-not-allowed'}`}
             title="Delete Selected Component (Del)"
           >
             <Trash2 size={14} />

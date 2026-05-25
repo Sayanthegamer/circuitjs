@@ -5,7 +5,7 @@
 import { create } from 'zustand';
 import type { ICircuitElement } from '../engine/types';
 
-export type ToolMode = 'select' | 'wire' | 'resistor' | 'voltage' | 'ground' | 'capacitor' | 'inductor' | 'switch' | 'diode' | 'led';
+export type ToolMode = 'select' | 'wire' | 'resistor' | 'voltage' | 'ground' | 'capacitor' | 'inductor' | 'switch' | 'diode' | 'led' | 'bjt' | 'current_source' | 'and' | 'or' | 'not' | 'transformer';
 
 export interface PlacingState {
   type: ToolMode;
@@ -19,6 +19,8 @@ export interface PlacingState {
 interface UIState {
   tool: ToolMode;
   selectedId: string | null;
+  selectedIds: string[];
+  selectionBox: { x1: number; y1: number; x2: number; y2: number } | null;
   placing: PlacingState | null;
   viewMode: 'workspace' | 'whitepaper';
   showValues: boolean;
@@ -45,6 +47,8 @@ interface UIState {
   // Actions
   setTool: (t: ToolMode) => void;
   setSelectedId: (id: string | null) => void;
+  setSelectedIds: (ids: string[]) => void;
+  setSelectionBox: (box: { x1: number; y1: number; x2: number; y2: number } | null) => void;
   setPlacing: (p: PlacingState | null) => void;
   setViewMode: (m: 'workspace' | 'whitepaper') => void;
   setShowValues: (s: boolean) => void;
@@ -65,6 +69,8 @@ export const lastMousePos = { x: 0, y: 0 };
 export const useUIStore = create<UIState>((set) => ({
   tool: 'select',
   selectedId: null,
+  selectedIds: [],
+  selectionBox: null,
   placing: null,
   viewMode: 'workspace',
   showValues: true,
@@ -85,13 +91,15 @@ export const useUIStore = create<UIState>((set) => ({
   setTool: (t) => set({ tool: t }),
   setSelectedId: (id) => set(() => {
     // Auto-open Properties tab when selecting an element on mobile
-    const updates: Partial<UIState> = { selectedId: id };
+    const updates: Partial<UIState> = { selectedId: id, selectedIds: id ? [id] : [] };
     if (id) {
       updates.activeMobileTab = 'properties';
       updates.mobileDockHeight = 'medium';
     }
     return updates;
   }),
+  setSelectedIds: (ids) => set({ selectedIds: ids, selectedId: ids.length > 0 ? ids[ids.length - 1] : null }),
+  setSelectionBox: (box) => set({ selectionBox: box }),
   setPlacing: (p) => set({ placing: p }),
   setViewMode: (m) => set({ viewMode: m }),
   setShowValues: (s) => set({ showValues: s }),

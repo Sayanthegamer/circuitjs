@@ -70,6 +70,11 @@ export class Circuit implements IStamper {
   timeStep = 5e-6;
   maxTimeStep = 5e-6;
 
+  // Solver Breakpoint Manager queue (sorted, deduplicated)
+  breakpoints: number[] = [];
+  private stampedTimeStep = -1;
+  private stampedBackwardEuler = false;
+
   // Wire optimization
   private wireInfoList: WireInfo[] = [];
   private nodeMap = new Map<string, { node: number }>();
@@ -79,6 +84,9 @@ export class Circuit implements IStamper {
   converged = false;
   subIterations = 0;
   isBackwardEuler = true;
+  isDCOperatingPoint = false;
+  isACSweep = false;
+  homotopyScale?: number;
 
   // Telemetry variables for the MatrixInspector / Solver visualizer
   lastG: number[][] = [];
@@ -221,6 +229,18 @@ export class Circuit implements IStamper {
     }
   }
 
+  registerBreakpoint(bpTime: number): void {
+    if (bpTime <= this.t) return;
+    let insertIdx = 0;
+    while (insertIdx < this.breakpoints.length && this.breakpoints[insertIdx] < bpTime) {
+      insertIdx++;
+    }
+    if (insertIdx < this.breakpoints.length && Math.abs(this.breakpoints[insertIdx] - bpTime) < 1e-12) {
+      return;
+    }
+    this.breakpoints.splice(insertIdx, 0, bpTime);
+  }
+
   // ==============================================================
   // TOPOLOGY ANALYSIS
   // ==============================================================
@@ -278,6 +298,7 @@ export class Circuit implements IStamper {
     this.nodeList = [];
     this.nodeMap.clear();
     this.floatingNodes = [];
+    this.breakpoints = [];
 
     // Step 1: Wire closure — merge nodes connected by wires
     this.calculateWireClosure();
@@ -612,6 +633,32 @@ export class Circuit implements IStamper {
       };
     }
     this.circuitNeedsMap = false;
+    // Pre-pass for coupled inductors: reset isCoupled flag
+    for (const ce of this.elements) {
+      if (ce.type === 'inductor') {
+        (ce as any).isCoupled = false;
+      }
+    }
+    // Set isCoupled for target inductors referenced by mutual coupling overlays
+    for (const ce of this.elements) {
+      if (ce.type === 'mutual') {
+        const mc = ce as any;
+        const ind1 = this.getElement(mc.ind1Id) as any;
+        const ind2 = this.getElement(mc.ind2Id) as any;
+        if (ind1 && ind1.type === 'inductor') {
+          ind1.isCoupled = true;
+          mc.ind1 = ind1;
+        } else {
+          mc.ind1 = null;
+        }
+        if (ind2 && ind2.type === 'inductor') {
+          ind2.isCoupled = true;
+          mc.ind2 = ind2;
+        } else {
+          mc.ind2 = null;
+        }
+      }
+    }
 
     // Stamp all elements
     for (const ce of this.elements) {
@@ -622,6 +669,19 @@ export class Circuit implements IStamper {
     // Stamp floating nodes
     for (const fn of this.floatingNodes) {
       this.stampResistor(fn, 0, 1e9);
+    }
+
+    if (this.isACSweep) {
+      // For AC Sweep, bypass matrix simplification and factorization on the real matrix,
+      // since the real part may be singular (e.g. ideal capacitors/inductors) and will be
+      // solved as a complex system of size 2N.
+      for (let i = 0; i < matrixSize; i++) {
+        this.origRightSide[i] = this.circuitRightSide[i];
+      }
+      copyMatrix(this.circuitMatrix, this.origMatrix, matrixSize);
+      this.stampedTimeStep = this.timeStep;
+      this.stampedBackwardEuler = !!this.isBackwardEuler;
+      return;
     }
 
     // Simplify matrix
@@ -635,6 +695,8 @@ export class Circuit implements IStamper {
         return;
       }
     }
+    this.stampedTimeStep = this.timeStep;
+    this.stampedBackwardEuler = !!this.isBackwardEuler;
   }
 
   private simplifyMatrix(matrixSize: number): boolean {
@@ -732,7 +794,31 @@ export class Circuit implements IStamper {
    * For nonlinear circuits, iterates Newton-Raphson until convergence.
    */
   runStep(captureTelemetry = false): boolean {
-    if (!this.circuitMatrix || this.elements.length === 0) return false;
+    if (!this.circuitMatrix || this.nodeList.length === 0 || this.elements.length === 0) return false;
+
+    if (this.t > 0) {
+      this.isBackwardEuler = false;
+    }
+
+    const MIN_STEP = 1e-9;
+    while (this.breakpoints.length > 0 && this.breakpoints[0] - this.t < MIN_STEP) {
+      this.breakpoints.shift();
+    }
+
+    if (this.breakpoints.length > 0 && this.breakpoints[0] <= this.t + this.maxTimeStep) {
+      const bp = this.breakpoints[0];
+      this.breakpoints.shift();
+      this.timeStep = bp - this.t;
+      this.isBackwardEuler = true;
+    } else {
+      this.timeStep = this.maxTimeStep;
+    }
+
+    if (this.timeStep !== this.stampedTimeStep || !!this.isBackwardEuler !== this.stampedBackwardEuler) {
+      this.stampCircuit();
+    }
+
+    if (!this.circuitMatrix) return false;
 
     // Start iteration for all elements
     for (const ce of this.elements) ce.startIteration();
@@ -775,6 +861,167 @@ export class Circuit implements IStamper {
     this.calcWireCurrents();
 
     // Save node voltages for potential rollback
+    copyVector(this.nodeVoltages, this.lastNodeVoltages, this.nodeVoltages.length);
+
+    // Overload safety check: stop simulation if voltages/currents exceed safe limits
+    for (let j = 0; j < this.nodeVoltages.length; j++) {
+      if (Math.abs(this.nodeVoltages[j]) > 1000.0) {
+        this.stop("Overload: Voltage exceeds 1000V limit!");
+        return false;
+      }
+    }
+    for (const ce of this.elements) {
+      if (Math.abs(ce.getCurrent()) > 50.0) {
+        this.stop("Overload: Current exceeds 50A limit!");
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  computeDCOperatingPoint(): boolean {
+    if (!this.circuitMatrix || this.nodeList.length === 0 || this.elements.length === 0) return false;
+
+    this.stopMessage = null;
+
+    const oldDCOp = this.isDCOperatingPoint;
+    const oldACSweep = this.isACSweep;
+    const oldTimeStep = this.timeStep;
+    const oldBackwardEuler = this.isBackwardEuler;
+
+    this.isDCOperatingPoint = true;
+    this.isACSweep = false;
+    this.isBackwardEuler = true;
+
+    const savedVoltages = new Float64Array(this.nodeVoltages.length);
+    copyVector(this.nodeVoltages, savedVoltages, this.nodeVoltages.length);
+
+    const savedElementStates = this.elements.map(ce => {
+      return {
+        element: ce,
+        volts: ce.volts ? ce.volts.slice() : [],
+        current: (ce as any).current,
+        vdio: (ce as any).vdio,
+        lastvoltdiff: (ce as any).lastvoltdiff,
+        lastGeq: (ce as any).lastGeq,
+        lastIeq: (ce as any).lastIeq,
+        lastVbe: (ce as any).lastVbe,
+        lastVbc: (ce as any).lastVbc,
+        currentSourceValue: (ce as any).currentSourceValue,
+      };
+    });
+
+    const steps = 10;
+    let success = true;
+
+    for (let step = 0; step <= steps; step++) {
+      const kappa = step / steps;
+      this.homotopyScale = kappa;
+
+      this.stampCircuit();
+
+      const maxSubIter = this.circuitNonLinear ? 500 : 1;
+      let stepConverged = false;
+
+      for (let subiter = 0; subiter < maxSubIter; subiter++) {
+        this.subIterations = subiter;
+        this.converged = true;
+
+        copyVector(this.origRightSide, this.circuitRightSide, this.circuitMatrixSize);
+        if (this.circuitNonLinear) {
+          copyMatrix(this.origMatrix, this.circuitMatrix, this.circuitMatrixSize);
+        }
+
+        for (const ce of this.elements) {
+          if (ce instanceof WireElement) continue;
+          ce.doStep(this);
+        }
+
+        if (this.stopMessage) {
+          success = false;
+          break;
+        }
+
+        if (!this.isMatrixValid()) {
+          success = false;
+          break;
+        }
+
+        if (this.circuitNonLinear) {
+          if (!luFactor(this.circuitMatrix, this.circuitMatrixSize, this.circuitPermute)) {
+            this.stop('Singular matrix!');
+            success = false;
+            break;
+          }
+        }
+
+        luSolve(this.circuitMatrix, this.circuitMatrixSize, this.circuitPermute, this.circuitRightSide);
+        
+        copyVector(this.nodeVoltages, this.prevNodeVoltages, this.nodeVoltages.length);
+        this.applySolvedRightSide(this.circuitRightSide);
+
+        if (this.circuitNonLinear) {
+          let maxDiff = 0;
+          for (let j = 0; j < this.nodeVoltages.length; j++) {
+            maxDiff = Math.max(maxDiff, Math.abs(this.nodeVoltages[j] - this.prevNodeVoltages[j]));
+          }
+          if (maxDiff < 1e-6 && subiter > 0) {
+            stepConverged = true;
+            break;
+          }
+        } else {
+          stepConverged = true;
+          break;
+        }
+      }
+
+      if (this.circuitNonLinear && !stepConverged) {
+        success = false;
+        break;
+      }
+
+      if (!success) break;
+    }
+
+    const solvedVoltages = new Float64Array(this.nodeVoltages.length);
+    if (success) {
+      copyVector(this.nodeVoltages, solvedVoltages, this.nodeVoltages.length);
+    }
+
+    this.isDCOperatingPoint = oldDCOp;
+    this.isACSweep = oldACSweep;
+    this.timeStep = oldTimeStep;
+    this.isBackwardEuler = oldBackwardEuler;
+    this.homotopyScale = undefined;
+
+    this.stampCircuit();
+
+    if (!success) {
+      copyVector(savedVoltages, this.nodeVoltages, this.nodeVoltages.length);
+      for (const state of savedElementStates) {
+        const ce = state.element;
+        if (ce.volts && state.volts) {
+          for (let i = 0; i < ce.volts.length; i++) {
+            ce.volts[i] = state.volts[i];
+          }
+        }
+        (ce as any).current = state.current;
+        if ((ce as any).vdio !== undefined) (ce as any).vdio = state.vdio;
+        if ((ce as any).lastvoltdiff !== undefined) (ce as any).lastvoltdiff = state.lastvoltdiff;
+        if ((ce as any).lastGeq !== undefined) (ce as any).lastGeq = state.lastGeq;
+        if ((ce as any).lastIeq !== undefined) (ce as any).lastIeq = state.lastIeq;
+        if ((ce as any).lastVbe !== undefined) (ce as any).lastVbe = state.lastVbe;
+        if ((ce as any).lastVbc !== undefined) (ce as any).lastVbc = state.lastVbc;
+        if ((ce as any).currentSourceValue !== undefined) (ce as any).currentSourceValue = state.currentSourceValue;
+      }
+      return false;
+    }
+
+    copyVector(solvedVoltages, this.nodeVoltages, this.nodeVoltages.length);
+
+    for (const ce of this.elements) ce.stepFinished();
+    this.calcWireCurrents();
     copyVector(this.nodeVoltages, this.lastNodeVoltages, this.nodeVoltages.length);
 
     return true;

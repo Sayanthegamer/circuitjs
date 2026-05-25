@@ -5,6 +5,9 @@
 /** Map a voltage to an RGB color string.
  *  Positive → green/yellow, Negative → red, Zero → grey, clamps at ±voltageRange */
 export function voltageToColor(v: number, voltageRange = 5): string {
+  if (v === undefined || isNaN(v)) {
+    return 'rgb(80,80,80)';
+  }
   const clamped = Math.max(-voltageRange, Math.min(voltageRange, v));
   const t = clamped / voltageRange; // -1..1
 

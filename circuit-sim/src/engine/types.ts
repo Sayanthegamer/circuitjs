@@ -143,12 +143,16 @@ export interface IStamper {
   stampCurrentSource(n1: number, n2: number, i: number): void;
   stampNonLinear(i: number): void;
   updateVoltageSource(n1: number, n2: number, vs: number, v: number): void;
+  registerBreakpoint?(t: number): void;
   nodeCount: number;
   t: number;
   timeStep: number;
   converged: boolean;
   subIterations: number;
   isBackwardEuler?: boolean;
+  isDCOperatingPoint?: boolean;
+  isACSweep?: boolean;
+  homotopyScale?: number;
 }
 
 export interface SimulationState {

@@ -32,13 +32,76 @@ function App() {
 
   // Zustand Store values
   const viewMode = useUIStore((s) => s.viewMode);
+  const setViewMode = useUIStore((s) => s.setViewMode);
   const tool = useUIStore((s) => s.tool);
   const camera = useCircuitStore((s) => s.camera);
   const plotterRef = useCircuitStore((s) => s.plotterRef);
+  const stopMessage = useCircuitStore((s) => s.stopMessage);
 
   // Mobile Store values
   const mobileDockHeight = useUIStore((s) => s.mobileDockHeight);
   const activeMobileTab = useUIStore((s) => s.activeMobileTab);
+
+  // Synchronize viewMode with URL search parameters for SEO crawler support
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlView = params.get('view');
+    
+    if (urlView === 'whitepaper' || urlView === 'workspace') {
+      if (urlView !== viewMode) {
+        setViewMode(urlView);
+      }
+    } else {
+      // Initialize query parameter if not present
+      params.set('view', viewMode);
+      window.history.replaceState(null, '', `?${params.toString()}${window.location.hash}`);
+    }
+
+    const handlePopState = () => {
+      const currentParams = new URLSearchParams(window.location.search);
+      const currentUrlView = currentParams.get('view');
+      if (currentUrlView === 'whitepaper' || currentUrlView === 'workspace') {
+        if (currentUrlView !== useUIStore.getState().viewMode) {
+          useUIStore.getState().setViewMode(currentUrlView);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlView = params.get('view');
+    if (urlView !== viewMode) {
+      params.set('view', viewMode);
+      window.history.pushState(null, '', `?${params.toString()}${window.location.hash}`);
+    }
+
+    // Dynamically update the canonical link to match the active view parameter
+    let canonicalLink = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.rel = 'canonical';
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.href = `https://circuitjs.vercel.app/?view=${viewMode}`;
+  }, [viewMode]);
+
+  // Handle hash scrolling on page load/view switch for the whitepaper documentation
+  useEffect(() => {
+    if (viewMode === 'whitepaper' && window.location.hash) {
+      const hashId = window.location.hash.substring(1);
+      const timer = setTimeout(() => {
+        const element = document.getElementById(hashId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [viewMode]);
 
   // Canvas Sizing
   const resizeCanvas = useCallback(() => {
@@ -155,6 +218,73 @@ function App() {
 
       {/* Float HUD card on hovered element */}
       <NodeHUD />
+      {/* Overload Warning Banner Overlay */}
+      {stopMessage && (
+        <div className="absolute inset-0 bg-[#0a0a0f]/80 backdrop-blur-xs flex items-center justify-center p-6 z-40 transition-all duration-300">
+          <div className="max-w-md w-full bg-surface border border-voltage-neg/30 p-6 shadow-2xl relative overflow-hidden">
+            {/* Corner styling for high-tech look */}
+            <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-voltage-neg"></div>
+            <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-voltage-neg"></div>
+            <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-voltage-neg"></div>
+            <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-voltage-neg"></div>
+            
+            <div className="flex items-start gap-4">
+              <div className="p-2 bg-voltage-neg/10 text-voltage-neg rounded">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div className="flex-1 space-y-2">
+                <h3 className="text-sm font-bold font-mono tracking-wider text-voltage-neg uppercase">
+                  {stopMessage.includes("Overload") ? "Simulation Overload Warning" : "Simulation Halted"}
+                </h3>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  {stopMessage}
+                </p>
+                {stopMessage.includes("Overload") && (
+                  <p className="text-[10px] text-accent/80 leading-relaxed font-mono">
+                    Warning: Winding currents/voltages have exceeded safe classroom bounds. To prevent system lock-ups and protect computer resources, the safety interrupter has automatically halted computation.
+                  </p>
+                )}
+                <div className="pt-2 flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      const { circuit } = useCircuitStore.getState();
+                      circuit.stopMessage = null;
+                      useCircuitStore.getState().updateTelemetry({
+                        matrixG: circuit.lastG && circuit.lastG.length > 0 ? circuit.lastG.map(row => [...row]) : [[0]],
+                        vectorV: circuit.lastV && circuit.lastV.length > 0 ? [...circuit.lastV] : [],
+                        vectorI: circuit.lastI && circuit.lastI.length > 0 ? [...circuit.lastI] : [],
+                        nrErrors: circuit.lastErrors && circuit.lastErrors.length > 0 ? [...circuit.lastErrors] : [],
+                        simTime: circuit.t,
+                        stepsPerFrame: 0,
+                        stopMessage: null,
+                      });
+                    }}
+                    className="px-3 py-1.5 bg-surface-bright border border-border-hairline text-[10px] uppercase font-bold tracking-wider hover:bg-surface-bright/80 cursor-pointer transition-colors"
+                  >
+                    Dismiss Warning
+                  </button>
+                  <button
+                    onClick={() => {
+                      useCircuitStore.getState().restoreLastStableConfig();
+                    }}
+                    className="px-3 py-1.5 bg-accent/20 hover:bg-accent/30 border border-accent/40 text-[10px] uppercase font-bold tracking-wider text-accent cursor-pointer transition-colors"
+                  >
+                    Restore Last Stable
+                  </button>
+                  <button
+                    onClick={() => {
+                      useCircuitStore.getState().resetSim();
+                    }}
+                    className="px-3 py-1.5 bg-primary/20 hover:bg-primary/30 border border-primary/40 text-[10px] uppercase font-bold tracking-wider text-primary cursor-pointer transition-colors"
+                  >
+                    Reset Simulation
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

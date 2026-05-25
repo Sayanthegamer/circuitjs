@@ -61,6 +61,7 @@ interface CircuitState {
   loadFromLocalStorage: () => boolean;
   importFromJson: (jsonStr: string) => boolean;
   exportToJson: () => string;
+  restoreLastStableConfig: () => boolean;
 }
 
 export const useCircuitStore = create<CircuitState>((set, get) => ({
@@ -187,6 +188,9 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
     try {
       const state = serializeCircuit(get().circuit);
       localStorage.setItem('circuitsim_circuit', state);
+      if (get().circuit.stopMessage === null) {
+        localStorage.setItem('circuitsim_stable_circuit', state);
+      }
     } catch (e) {
       console.error('Failed to save to localStorage:', e);
     }
@@ -221,5 +225,42 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
 
   exportToJson: () => {
     return serializeCircuit(get().circuit);
+  },
+
+  restoreLastStableConfig: () => {
+    try {
+      const state = localStorage.getItem('circuitsim_stable_circuit');
+      if (state) {
+        get().pushHistory();
+        deserializeCircuit(get().circuit, state);
+        
+        // Clear active UI selection states
+        useUIStore.setState({
+          selectedId: null,
+          selectedIds: [],
+          selectionBox: null,
+          hoveredElm: null,
+          hoveredNode: null,
+        });
+
+        get().circuit.stopMessage = null;
+        get().circuit.analyzeCircuit();
+        get().saveToLocalStorage();
+        set({
+          simTime: 0,
+          stepsPerFrame: 0,
+          stopMessage: null,
+          matrixG: [[0]],
+          vectorV: [],
+          vectorI: [],
+          nrErrors: [],
+          telemetryVersion: get().telemetryVersion + 1,
+        });
+        return true;
+      }
+    } catch (e) {
+      console.error('Failed to restore last stable config:', e);
+    }
+    return false;
   },
 }));
