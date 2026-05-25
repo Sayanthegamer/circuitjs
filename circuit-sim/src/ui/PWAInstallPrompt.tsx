@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, X, Smartphone } from 'lucide-react';
+import { useUIStore } from '../stores/uiStore';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -10,9 +12,13 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+type NavigatorWithStandalone = Navigator & { standalone?: boolean };
+
 export const PWAInstallPrompt: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const { isDesktop } = useBreakpoint();
+  const mobileDockHeight = useUIStore((s) => s.mobileDockHeight);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -32,7 +38,7 @@ export const PWAInstallPrompt: React.FC = () => {
 
     // Check if the application is already running in standalone mode (already installed)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                          (window.navigator as any).standalone === true;
+                          ('standalone' in window.navigator && (window.navigator as NavigatorWithStandalone).standalone === true);
     
     if (isStandalone) {
       setIsVisible(false);
@@ -65,8 +71,22 @@ export const PWAInstallPrompt: React.FC = () => {
 
   if (!isVisible) return null;
 
+  let bottomStyle = '16px';
+  if (!isDesktop) {
+    const heightMap = {
+      collapsed: 42,
+      medium: 250,
+      expanded: 400
+    };
+    const dockHeight = heightMap[mobileDockHeight || 'expanded'] || 400;
+    bottomStyle = `${dockHeight + 16}px`;
+  }
+
   return (
-    <div className="fixed bottom-14 left-4 right-4 z-40 animate-slide-up flex justify-center pointer-events-none">
+    <div 
+      className="fixed left-4 right-4 z-50 animate-slide-up flex justify-center pointer-events-none"
+      style={{ bottom: bottomStyle }}
+    >
       <div className="w-full max-w-[480px] bg-surface/85 backdrop-blur-md border border-primary/20 p-3 shadow-2xl flex items-center justify-between gap-3 text-text-primary pointer-events-auto rounded-none">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-primary/10 border border-primary/30 flex items-center justify-center text-primary flex-shrink-0">
@@ -74,12 +94,12 @@ export const PWAInstallPrompt: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider font-sans">Install App</span>
-              <span className="flex items-center gap-0.5 bg-primary/20 text-primary text-[7px] font-bold uppercase tracking-widest px-1 font-mono">
+              <span className="text-xs font-bold uppercase tracking-wider font-sans">Install App</span>
+              <span className="flex items-center gap-0.5 bg-primary/20 text-primary text-xs font-bold uppercase tracking-widest px-1 font-mono">
                 <Sparkles size={8} /> Fast UI
               </span>
             </div>
-            <p className="text-[9px] text-text-secondary leading-normal mt-0.5 font-sans">
+            <p className="text-xs text-text-secondary leading-normal mt-0.5 font-sans">
               Add to Home Screen for native fullscreen editing.
             </p>
           </div>
@@ -88,7 +108,7 @@ export const PWAInstallPrompt: React.FC = () => {
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={handleInstallClick}
-            className="px-3 py-1.5 bg-primary text-white text-[9px] font-bold uppercase tracking-wider hover:bg-primary/95 transition-all focus:outline-none active:scale-95 cursor-pointer rounded-none"
+            className="px-3 py-1.5 bg-primary text-white text-xs font-bold uppercase tracking-wider hover:bg-primary/95 transition-all focus:outline-none active:scale-95 cursor-pointer rounded-none"
           >
             Add to Home
           </button>

@@ -179,10 +179,10 @@ function App() {
 
   // Collapse mobile dock when rotating sideways to landscape
   useEffect(() => {
-    if (!isDesktop && isLandscape) {
+    if (!isDesktop && isLandscape && mobileDockHeight !== 'collapsed') {
       useUIStore.getState().setMobileDockHeight('collapsed');
     }
-  }, [isDesktop, isLandscape]);
+  }, [isDesktop, isLandscape, mobileDockHeight]);
 
   // Close mobile menu when switching to desktop viewport
   useEffect(() => {

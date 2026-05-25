@@ -15,7 +15,6 @@ self.addEventListener('install', (event) => {
       .then((cache) => {
         return cache.addAll(ASSETS_TO_CACHE);
       })
-      .then(() => self.skipWaiting())
   );
 });
 
@@ -48,7 +47,7 @@ self.addEventListener('fetch', (event) => {
             .then((networkResponse) => {
               if (networkResponse.status === 200) {
                 caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(event.request, networkResponse);
+                  cache.put(event.request, networkResponse.clone());
                 });
               }
             })
@@ -77,4 +76,11 @@ self.addEventListener('fetch', (event) => {
           });
       })
   );
+});
+
+// Listener to allow waiting service worker to force activation
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

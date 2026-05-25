@@ -138,15 +138,19 @@ function PropertiesPanelInner({
 
   const adjustVoltage = (offset: number) => {
     const val = (selectedElm as VoltageSourceElement).maxVoltage + offset;
-    const rounded = parseFloat(val.toFixed(2));
-    setVoltageStr(rounded.toString());
-    handlePropChange('voltage', rounded);
+    if (Number.isFinite(val)) {
+      const clamped = Math.max(-24, Math.min(val, 24));
+      const rounded = parseFloat(clamped.toFixed(2));
+      setVoltageStr(rounded.toString());
+      handlePropChange('voltage', rounded);
+    }
   };
 
   const adjustFrequency = (offset: number) => {
     const val = (selectedElm as VoltageSourceElement).frequency + offset;
-    if (val > 0) {
-      const rounded = parseFloat(val.toFixed(2));
+    if (Number.isFinite(val) && val > 0) {
+      const clamped = Math.max(1, Math.min(val, 1000));
+      const rounded = parseFloat(clamped.toFixed(2));
       setFrequencyStr(rounded.toString());
       handlePropChange('frequency', rounded);
     }
@@ -527,7 +531,7 @@ function PropertiesPanelInner({
                 <div className="flex flex-wrap gap-1">
                   {[10, 100, 220, 1000, 2200, 10000, 47000, 100000, 1000000].map(pVal => {
                     const label = pVal >= 1e6 ? `${pVal/1e6}M` : pVal >= 1000 ? `${pVal/1000}k` : `${pVal}`;
-                    const active = Math.abs((selectedElm as ResistorElement).resistance - pVal) < 1e-9;
+                    const active = Math.abs((selectedElm as ResistorElement).resistance - pVal) < (pVal * 1e-5);
                     return (
                       <button
                         key={pVal}
@@ -559,7 +563,7 @@ function PropertiesPanelInner({
                       setResistanceStr(val.toString());
                       handlePropChange('resistance', val);
                     }}
-                    className="w-full accent-primary bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
+                    className="w-full bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
                   />
                 </div>
               </div>
@@ -617,7 +621,7 @@ function PropertiesPanelInner({
                     {/* Presets */}
                     <div className="flex flex-wrap gap-1">
                       {[-12, -5, 0, 1.5, 3.3, 5, 9, 12, 24].map(pVal => {
-                        const active = Math.abs((selectedElm as VoltageSourceElement).maxVoltage - pVal) < 1e-9;
+                        const active = Math.abs((selectedElm as VoltageSourceElement).maxVoltage - pVal) < Math.max(1e-5, Math.abs(pVal) * 1e-5);
                         return (
                           <button
                             key={pVal}
@@ -647,7 +651,7 @@ function PropertiesPanelInner({
                           setVoltageStr(val.toString());
                           handlePropChange('voltage', val);
                         }}
-                        className="w-full accent-primary bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
+                        className="w-full bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
                       />
                     </div>
                   </div>
@@ -682,7 +686,7 @@ function PropertiesPanelInner({
                     {/* Presets */}
                     <div className="flex flex-wrap gap-1">
                       {[1, 5, 10, 50, 60, 100, 400, 1000].map(pVal => {
-                        const active = Math.abs((selectedElm as VoltageSourceElement).frequency - pVal) < 1e-9;
+                        const active = Math.abs((selectedElm as VoltageSourceElement).frequency - pVal) < Math.max(1e-5, Math.abs(pVal) * 1e-5);
                         return (
                           <button
                             key={pVal}
@@ -712,7 +716,7 @@ function PropertiesPanelInner({
                           setFrequencyStr(val.toString());
                           handlePropChange('frequency', val);
                         }}
-                        className="w-full accent-primary bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
+                        className="w-full bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
                       />
                     </div>
                   </div>
@@ -842,7 +846,7 @@ function PropertiesPanelInner({
                       setCapacitanceStr(val.toString());
                       handlePropChange('capacitance', val);
                     }}
-                    className="w-full accent-primary bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
+                    className="w-full bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
                   />
                 </div>
               </div>
@@ -909,7 +913,7 @@ function PropertiesPanelInner({
                       setInductanceStr(val.toString());
                       handlePropChange('inductance', val);
                     }}
-                    className="w-full accent-primary bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
+                    className="w-full bg-surface-dim h-1.5 rounded-lg appearance-none cursor-pointer border border-border-hairline"
                   />
                 </div>
               </div>
