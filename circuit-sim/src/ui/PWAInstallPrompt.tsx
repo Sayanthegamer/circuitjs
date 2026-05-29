@@ -14,6 +14,11 @@ interface BeforeInstallPromptEvent extends Event {
 
 type NavigatorWithStandalone = Navigator & { standalone?: boolean };
 
+const getIsStandalone = () => {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         ('standalone' in window.navigator && (window.navigator as NavigatorWithStandalone).standalone === true);
+};
+
 export const PWAInstallPrompt: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -29,20 +34,13 @@ export const PWAInstallPrompt: React.FC = () => {
       
       // Only show the banner if the user hasn't dismissed it in this session
       const dismissed = sessionStorage.getItem('pwa-prompt-dismissed');
-      if (!dismissed) {
+      const isStandalone = getIsStandalone();
+      if (!dismissed && !isStandalone) {
         setIsVisible(true);
       }
     };
 
     window.addEventListener('beforeinstallprompt', handler);
-
-    // Check if the application is already running in standalone mode (already installed)
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                          ('standalone' in window.navigator && (window.navigator as NavigatorWithStandalone).standalone === true);
-    
-    if (isStandalone) {
-      setIsVisible(false);
-    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
@@ -56,8 +54,7 @@ export const PWAInstallPrompt: React.FC = () => {
     await deferredPrompt.prompt();
     
     // Read the user's choice
-    const choiceResult = await deferredPrompt.userChoice;
-    console.log(`PWA user choice outcome: ${choiceResult.outcome}`);
+    await deferredPrompt.userChoice;
     
     // Clear deferred prompt and hide panel
     setDeferredPrompt(null);
