@@ -21,11 +21,33 @@ const getIsStandalone = () => {
 
 export const PWAInstallPrompt: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isVisible, setIsVisible] = useState(false);
+
+  // Initialize isVisible lazily so we can check standalone state synchronously
+  const [isVisible, setIsVisible] = useState(() => {
+    // We only want to show it if we have a deferred prompt and it hasn't been dismissed,
+    // but initially it should be false until the event fires.
+    if (typeof window !== 'undefined') {
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                          ('standalone' in window.navigator && (window.navigator as NavigatorWithStandalone).standalone === true);
+        if (isStandalone) {
+            return false;
+        }
+    }
+    return false;
+  });
+
   const { isDesktop } = useBreakpoint();
   const mobileDockHeight = useUIStore((s) => s.mobileDockHeight);
 
   useEffect(() => {
+    // Check if the application is already running in standalone mode (already installed)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                          ('standalone' in window.navigator && (window.navigator as NavigatorWithStandalone).standalone === true);
+
+    if (isStandalone) {
+      return;
+    }
+
     const handler = (e: Event) => {
       // Prevent the browser's default bar
       e.preventDefault();
