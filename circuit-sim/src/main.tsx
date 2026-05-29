@@ -13,7 +13,6 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((reg) => {
-        console.log('ServiceWorker registered with scope: ', reg.scope);
         
         // Listen for updates and prompt user to reload
         reg.addEventListener('updatefound', () => {
