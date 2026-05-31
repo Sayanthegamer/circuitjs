@@ -19,9 +19,7 @@ export abstract class CircuitElement implements ICircuitElement {
   protected voltSource = -1;
 
   constructor(x: number, y: number, x2?: number, y2?: number) {
-    this.id = typeof crypto !== 'undefined' && crypto.randomUUID
-      ? `elm_${crypto.randomUUID()}`
-      : `elm_${Math.random().toString(36).substring(2, 11)}_${Date.now().toString(36)}`;
+    this.id = `elm_${this.generateSecureId()}`;
     this.x = x;
     this.y = y;
     this.x2 = x2 ?? x;
@@ -105,5 +103,19 @@ export abstract class CircuitElement implements ICircuitElement {
   getPower(): number {
     if (this.volts.length < 2) return 0;
     return this.getVoltageDiff() * this.current;
+  }
+
+  private generateSecureId(): string {
+    if (typeof crypto !== 'undefined') {
+      if (typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+      }
+      if (typeof crypto.getRandomValues === 'function') {
+        return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c =>
+          (Number(c) ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> Number(c) / 4).toString(16)
+        );
+      }
+    }
+    throw new Error("Secure random number generation is not supported by this environment.");
   }
 }
