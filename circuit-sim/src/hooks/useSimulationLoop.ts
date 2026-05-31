@@ -8,7 +8,31 @@ import { useUIStore } from '../stores/uiStore';
 import { drawGrid } from '../renderer/grid';
 import { drawElement } from '../renderer/element-renderers';
 import type { ICircuitElement } from '../engine/types';
-import { ResistorElement, VoltageSourceElement, CapacitorElement, InductorElement } from '../engine';
+import { ResistorElement, VoltageSourceElement, CapacitorElement, InductorElement, Circuit } from '../engine';
+
+/**
+ * Pushes full UI telemetry data back to the circuit store.
+ */
+function pushTelemetry(circuit: Circuit, steps: number) {
+  const tooLarge = circuit.lastG && circuit.lastG.length > 2500;
+  useCircuitStore.getState().updateTelemetry({
+    simTime: circuit.t,
+    stepsPerFrame: steps,
+    stopMessage: circuit.stopMessage,
+    matrixG: tooLarge
+      ? []
+      : (circuit.lastG && circuit.lastG.length > 0 ? Array.from(circuit.lastG) : [0]),
+    vectorV: tooLarge
+      ? []
+      : (circuit.lastV && circuit.lastV.length > 0 ? [...circuit.lastV] : []),
+    vectorI: tooLarge
+      ? []
+      : (circuit.lastI && circuit.lastI.length > 0 ? [...circuit.lastI] : []),
+    nrErrors: circuit.lastErrors && circuit.lastErrors.length > 0
+      ? [...circuit.lastErrors]
+      : [],
+  });
+}
 
 /**
  * The core simulation + rendering loop.
@@ -259,28 +283,11 @@ export function useSimulationLoop(
       elapsedTelemetry += dt;
       if (elapsedTelemetry >= 0.25) {
         elapsedTelemetry = 0;
-        const tooLarge = circuit.lastG && circuit.lastG.length > 50;
-        useCircuitStore.getState().updateTelemetry({
-          simTime: circuit.t,
-          stepsPerFrame: steps,
-          stopMessage: circuit.stopMessage,
-          matrixG: tooLarge
-            ? []
-            : (circuit.lastG && circuit.lastG.length > 0 ? Array.from(circuit.lastG) : [0]),
-          vectorV: tooLarge
-            ? []
-            : (circuit.lastV && circuit.lastV.length > 0 ? [...circuit.lastV] : []),
-          vectorI: tooLarge
-            ? []
-            : (circuit.lastI && circuit.lastI.length > 0 ? [...circuit.lastI] : []),
-          nrErrors: circuit.lastErrors && circuit.lastErrors.length > 0
-            ? [...circuit.lastErrors]
-            : [],
-        });
+        pushTelemetry(circuit, steps);
       }
 
       rafRef.current = requestAnimationFrame(render);
-    };
+
 
     rafRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(rafRef.current);
