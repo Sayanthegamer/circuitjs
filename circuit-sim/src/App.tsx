@@ -69,7 +69,7 @@ function App() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [setViewMode, viewMode]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -250,7 +250,7 @@ function App() {
                       const { circuit } = useCircuitStore.getState();
                       circuit.stopMessage = null;
                       useCircuitStore.getState().updateTelemetry({
-                        matrixG: circuit.lastG && circuit.lastG.length > 0 ? circuit.lastG.map(row => [...row]) : [[0]],
+                        matrixG: circuit.lastG && circuit.lastG.length > 0 ? Array.from(circuit.lastG) : [0],
                         vectorV: circuit.lastV && circuit.lastV.length > 0 ? [...circuit.lastV] : [],
                         vectorI: circuit.lastI && circuit.lastI.length > 0 ? [...circuit.lastI] : [],
                         nrErrors: circuit.lastErrors && circuit.lastErrors.length > 0 ? [...circuit.lastErrors] : [],

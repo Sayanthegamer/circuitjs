@@ -158,11 +158,11 @@ describe('Circuit', () => {
 
     it('returns false if matrix is not initialized', () => {
       const emptyCircuit = new Circuit();
-      emptyCircuit.circuitMatrix = [] as unknown as number[][];
+      emptyCircuit.circuitMatrix = new Float64Array(0);
       expect(emptyCircuit.runStep()).toBe(false);
 
       const nullMatrixCircuit = new Circuit();
-      nullMatrixCircuit.circuitMatrix = undefined as unknown as number[][];
+      nullMatrixCircuit.circuitMatrix = undefined as unknown as Float64Array;
       nullMatrixCircuit.addElement(new ResistorElement(0, 0, 10, 0, 100));
       expect(nullMatrixCircuit.runStep()).toBe(false);
     });
@@ -246,7 +246,7 @@ describe('Circuit', () => {
       // Using a nonlinear circuit makes matrix size > 0 because diode makes circuit nonlinear,
       // which prevents the matrix rows dropping optimization from removing all rows
       localCircuit.circuitNonLinear = false;
-      localCircuit.circuitMatrix[0][0] = NaN;
+      localCircuit.circuitMatrix[0] = NaN;
 
       const result = localCircuit.runStep();
       expect(result).toBe(false);

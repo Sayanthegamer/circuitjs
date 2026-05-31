@@ -9,7 +9,7 @@ import type { ProbedItem, PlotterHandle } from '../ui/Plotter';
 import { useUIStore } from './uiStore';
 
 export interface TelemetryPayload {
-  matrixG: number[][];
+  matrixG: number[];
   vectorV: number[];
   vectorI: number[];
   nrErrors: number[];
@@ -30,7 +30,7 @@ interface CircuitState {
   stopMessage: string | null;
 
   // Telemetry (updated at ~4Hz from the render loop)
-  matrixG: number[][];
+  matrixG: number[];
   vectorV: number[];
   vectorI: number[];
   nrErrors: number[];
@@ -73,7 +73,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
   stepsPerFrame: 0,
   stopMessage: null,
 
-  matrixG: [[0]],
+  matrixG: [0],
   vectorV: [],
   vectorI: [],
   nrErrors: [],
@@ -109,7 +109,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
       simTime: 0,
       stepsPerFrame: 0,
       stopMessage: null,
-      matrixG: [[0]],
+      matrixG: [0],
       vectorV: [],
       vectorI: [],
       nrErrors: [],
@@ -250,7 +250,7 @@ export const useCircuitStore = create<CircuitState>((set, get) => ({
           simTime: 0,
           stepsPerFrame: 0,
           stopMessage: null,
-          matrixG: [[0]],
+          matrixG: [0],
           vectorV: [],
           vectorI: [],
           nrErrors: [],

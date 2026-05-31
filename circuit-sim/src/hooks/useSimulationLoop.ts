@@ -266,7 +266,7 @@ export function useSimulationLoop(
           stopMessage: circuit.stopMessage,
           matrixG: tooLarge
             ? []
-            : (circuit.lastG && circuit.lastG.length > 0 ? circuit.lastG.map(row => [...row]) : [[0]]),
+            : (circuit.lastG && circuit.lastG.length > 0 ? Array.from(circuit.lastG) : [0]),
           vectorV: tooLarge
             ? []
             : (circuit.lastV && circuit.lastV.length > 0 ? [...circuit.lastV] : []),
