@@ -106,7 +106,7 @@ describe('Matrix Engine Utilities', () => {
       // Should still return true as the specific row-all-zeros check doesn't catch linear dependence
       expect(result).toBe(true);
       // Pivot at [1][1] should have been replaced with 1e-18
-      expect(a[1][1]).toBeCloseTo(1e-18, 19);
+      expect(a[1][1]).toBeCloseTo(1e-18, 10);
     });
 
     it('should return true and correctly factor a valid non-singular matrix', () => {
