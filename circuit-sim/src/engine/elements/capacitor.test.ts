@@ -37,7 +37,7 @@ describe('CapacitorElement', () => {
     // doStep calls stampCurrentSource
     cap.doStep(stamper);
 
-    // After our fix, it should stamp from node[0] to node[1]
+    // It should stamp from node[0] to node[1]
     expect(stamper.stampCurrentSource).toHaveBeenCalledWith(1, 2, expect.any(Number));
   });
 
