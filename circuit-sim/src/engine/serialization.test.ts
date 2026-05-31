@@ -51,14 +51,22 @@ describe('serialization', () => {
     expect(newR1.resistance).toBe(1000);
     expect(newR1.x).toBe(0);
     expect(newR1.x2).toBe(10);
+    expect(newR1.y).toBe(0);
+    expect(newR1.y2).toBe(0);
 
-    const newW1 = newCircuit.elements.find(e => e.id === w1.id);
+    const newW1 = newCircuit.elements.find(e => e.id === w1.id) as WireElement;
     expect(newW1).toBeDefined();
     expect(newW1!.type).toBe('wire');
+    expect(newW1.x).toBe(10);
+    expect(newW1.x2).toBe(20);
+    expect(newW1.y).toBe(0);
+    expect(newW1.y2).toBe(0);
 
-    const newG1 = newCircuit.elements.find(e => e.id === g1.id);
+    const newG1 = newCircuit.elements.find(e => e.id === g1.id) as GroundElement;
     expect(newG1).toBeDefined();
     expect(newG1!.type).toBe('ground');
+    expect(newG1.x).toBe(20);
+    expect(newG1.y).toBe(0);
   });
 
   it('should serialize and deserialize complex elements with properties', () => {
