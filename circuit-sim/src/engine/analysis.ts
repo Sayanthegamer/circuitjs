@@ -78,8 +78,8 @@ export class ACSweepEngine {
       // Copy real parts G into top-left and bottom-right blocks
       for (let i = 0; i < N; i++) {
         for (let j = 0; j < N; j++) {
-          complexMna[i][j] = circuit.circuitMatrix[i][j];
-          complexMna[i + N][j + N] = circuit.circuitMatrix[i][j];
+          complexMna[i * (2 * N) + j] = circuit.circuitMatrix[i * circuit.circuitMatrixSize + j];
+          complexMna[(i + N) * (2 * N) + (j + N)] = circuit.circuitMatrix[i * circuit.circuitMatrixSize + j];
         }
       }
 
@@ -88,9 +88,9 @@ export class ACSweepEngine {
         const stampElement = (row: number, col: number, val: number, block: 'TR' | 'BL') => {
           if (row < 0 || col < 0) return;
           if (block === 'TR') {
-            complexMna[row][col + N] += val;
+            complexMna[row * (2 * N) + (col + N)] += val;
           } else {
-            complexMna[row + N][col] += val;
+            complexMna[(row + N) * (2 * N) + col] += val;
           }
         };
 
@@ -148,9 +148,9 @@ export class ACSweepEngine {
           const stampComplexMatrix = (row: number, col: number, val: number, block: 'TR' | 'BL') => {
             if (row < 0 || col < 0) return;
             if (block === 'TR') {
-              complexMna[row][col + N] += val;
+              complexMna[row * (2 * N) + (col + N)] += val;
             } else {
-              complexMna[row + N][col] += val;
+              complexMna[(row + N) * (2 * N) + col] += val;
             }
           };
 

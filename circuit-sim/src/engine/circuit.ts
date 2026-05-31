@@ -44,9 +44,9 @@ export class Circuit implements IStamper {
   voltageSourceCount = 0;
 
   // MNA matrix state
-  circuitMatrix: number[][] = [];
+  circuitMatrix: Float64Array = new Float64Array(0);
   circuitRightSide: Float64Array = new Float64Array(0);
-  origMatrix: number[][] = [];
+  origMatrix: Float64Array = new Float64Array(0);
   origRightSide: Float64Array = new Float64Array(0);
   floatingNodes: number[] = [];
 
@@ -89,7 +89,7 @@ export class Circuit implements IStamper {
   homotopyScale?: number;
 
   // Telemetry variables for the MatrixInspector / Solver visualizer
-  lastG: number[][] = [];
+  lastG: Float64Array = new Float64Array(0);
   lastI: number[] = [];
   lastV: number[] = [];
   lastErrors: number[] = [];
@@ -159,7 +159,7 @@ export class Circuit implements IStamper {
         i--;
         j--;
       }
-      this.circuitMatrix[i][j] += x;
+      this.circuitMatrix[i * this.circuitMatrixSize + j] += x;
     }
   }
 
@@ -266,13 +266,13 @@ export class Circuit implements IStamper {
    */
   analyzeCircuit(): void {
     if (this.elements.length === 0) {
-      this.lastG = [];
+      this.lastG = new Float64Array(0);
       this.lastI = [];
       this.lastV = [];
       this.lastErrors = [];
       this.nodeList = [];
       this.elementMap.clear();
-      this.circuitMatrix = [];
+      this.circuitMatrix = new Float64Array(0);
       this.voltageSources = [];
       this.voltageSourceCount = 0;
       this.circuitMatrixSize = 0;
@@ -287,7 +287,7 @@ export class Circuit implements IStamper {
       this.nodeVoltages = new Float64Array(0);
       this.lastNodeVoltages = new Float64Array(0);
       this.circuitRightSide = new Float64Array(0);
-      this.origMatrix = [];
+      this.origMatrix = new Float64Array(0);
       this.origRightSide = new Float64Array(0);
       this.spatialGrid.clear();
       return;
@@ -710,7 +710,7 @@ export class Circuit implements IStamper {
       let rsadd = 0;
       let j: number;
       for (j = 0; j < matrixSize; j++) {
-        const q = this.circuitMatrix[i][j];
+        const q = this.circuitMatrix[i * this.circuitMatrixSize + j];
         if (this.circuitRowInfo[j].type === RowInfoType.ROW_CONST) {
           rsadd -= this.circuitRowInfo[j].value * q;
           continue;
@@ -764,9 +764,9 @@ export class Circuit implements IStamper {
       for (let j = 0; j < matrixSize; j++) {
         const ri = this.circuitRowInfo[j];
         if (ri.type === RowInfoType.ROW_CONST) {
-          newRs[ii] -= ri.value * this.circuitMatrix[i][j];
+          newRs[ii] -= ri.value * this.circuitMatrix[i * this.circuitMatrixSize + j];
         } else {
-          newMatrix[ii][ri.mapCol] += this.circuitMatrix[i][j];
+          newMatrix[ii * newSize + ri.mapCol] += this.circuitMatrix[i * this.circuitMatrixSize + j];
         }
       }
       ii++;
@@ -1055,9 +1055,9 @@ export class Circuit implements IStamper {
     // Capture telemetry before factorization
     if (captureTelemetry) {
       if (this.circuitNonLinear) {
-        this.lastG = this.circuitMatrix.map(row => [...row]);
+        this.lastG = new Float64Array(this.circuitMatrix);
       } else {
-        this.lastG = this.origMatrix.map(row => [...row]);
+        this.lastG = new Float64Array(this.origMatrix);
       }
       this.lastI = Array.from(this.circuitRightSide);
     }
@@ -1082,7 +1082,7 @@ export class Circuit implements IStamper {
   private isMatrixValid(): boolean {
     for (let j = 0; j < this.circuitMatrixSize; j++) {
       for (let i = 0; i < this.circuitMatrixSize; i++) {
-        const x = this.circuitMatrix[i][j];
+        const x = this.circuitMatrix[i * this.circuitMatrixSize + j];
         if (isNaN(x) || !isFinite(x)) {
           this.stop('NaN/infinite matrix!');
           return false;

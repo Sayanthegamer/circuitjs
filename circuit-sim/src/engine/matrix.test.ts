@@ -12,11 +12,8 @@ describe('Matrix Engine Utilities', () => {
     it('creates an n x n matrix representation', () => {
       const n = 3;
       const matrix = createMatrix(n);
-      expect(matrix).toHaveLength(n);
-      for (let i = 0; i < n; i++) {
-        expect(matrix[i]).toBeInstanceOf(Float64Array);
-        expect(matrix[i]).toHaveLength(n);
-      }
+      expect(matrix).toHaveLength(n * n);
+
     });
   });
 
@@ -47,20 +44,20 @@ describe('Matrix Engine Utilities', () => {
     it('deep copies a matrix', () => {
       const n = 2;
       const src = createMatrix(n);
-      src[0][0] = 1; src[0][1] = 2;
-      src[1][0] = 3; src[1][1] = 4;
+      src[0] = 1; src[1] = 2;
+      src[n] = 3; src[n + 1] = 4;
 
       const dst = createMatrix(n);
       copyMatrix(src, dst, n);
 
-      expect(dst[0][0]).toBe(1);
-      expect(dst[0][1]).toBe(2);
-      expect(dst[1][0]).toBe(3);
-      expect(dst[1][1]).toBe(4);
+      expect(dst[0]).toBe(1);
+      expect(dst[1]).toBe(2);
+      expect(dst[n]).toBe(3);
+      expect(dst[n + 1]).toBe(4);
 
       // Verify deep copy
-      src[0][0] = 99;
-      expect(dst[0][0]).toBe(1);
+      src[0] = 99;
+      expect(dst[0]).toBe(1);
     });
   });
 
@@ -79,9 +76,9 @@ describe('Matrix Engine Utilities', () => {
       const a = createMatrix(n);
 
       // Fill with some data
-      a[0][0] = 1; a[0][1] = 2; a[0][2] = 3;
+      a[0] = 1; a[1] = 2; a[2] = 3;
       // a[1] remains all zeros
-      a[2][0] = 4; a[2][1] = 5; a[2][2] = 6;
+      a[2 * n] = 4; a[2 * n + 1] = 5; a[2 * n + 2] = 6;
 
       const ipvt = new Array(n).fill(0);
 
@@ -95,8 +92,8 @@ describe('Matrix Engine Utilities', () => {
       const a = createMatrix(n);
 
       // Linearly dependent rows
-      a[0][0] = 1; a[0][1] = 2;
-      a[1][0] = 2; a[1][1] = 4;
+      a[0] = 1; a[1] = 2;
+      a[n] = 2; a[n + 1] = 4;
 
       const ipvt = new Array(n).fill(0);
 
@@ -106,15 +103,15 @@ describe('Matrix Engine Utilities', () => {
       // Should still return true as the specific row-all-zeros check doesn't catch linear dependence
       expect(result).toBe(true);
       // Pivot at [1][1] should have been replaced with 1e-18
-      expect(a[1][1]).toBeCloseTo(1e-18, 10);
+      expect(a[n + 1]).toBeCloseTo(1e-18, 10);
     });
 
     it('should return true and correctly factor a valid non-singular matrix', () => {
       const n = 2;
       const a = createMatrix(n);
 
-      a[0][0] = 4; a[0][1] = 3;
-      a[1][0] = 6; a[1][1] = 3;
+      a[0] = 4; a[1] = 3;
+      a[n] = 6; a[n + 1] = 3;
 
       const ipvt = new Array(n).fill(0);
 
@@ -129,10 +126,10 @@ describe('Matrix Engine Utilities', () => {
       // [ 6, 3 ]
       // [ 0, 1 ]
       // L should have L[1][0] = 4/6 = 0.666...
-      expect(a[0][0]).toBe(6);
-      expect(a[0][1]).toBe(3);
-      expect(a[1][0]).toBeCloseTo(0.6666666666666666);
-      expect(a[1][1]).toBe(1);
+      expect(a[0]).toBe(6);
+      expect(a[1]).toBe(3);
+      expect(a[n]).toBeCloseTo(0.6666666666666666);
+      expect(a[n + 1]).toBe(1);
     });
 
     it('solves a simple 2x2 system exactly', () => {
@@ -142,8 +139,8 @@ describe('Matrix Engine Utilities', () => {
       // Solution: x = 2, y = 1
       const n = 2;
       const a = createMatrix(n);
-      a[0][0] = 2; a[0][1] = 1;
-      a[1][0] = 3; a[1][1] = -1;
+      a[0] = 2; a[1] = 1;
+      a[n] = 3; a[n + 1] = -1;
 
       const ipvt = new Array(n).fill(0);
       const success = luFactor(a, n, ipvt);
@@ -165,9 +162,9 @@ describe('Matrix Engine Utilities', () => {
       // Solution: x = 1, y = 2, z = 3
       const n = 3;
       const a = createMatrix(n);
-      a[0][0] = 0; a[0][1] = 1; a[0][2] = 1;
-      a[1][0] = 2; a[1][1] = 2; a[1][2] = 2;
-      a[2][0] = -1; a[2][1] = 0; a[2][2] = 1;
+      a[0] = 0; a[1] = 1; a[2] = 1;
+      a[n] = 2; a[n + 1] = 2; a[n + 2] = 2;
+      a[2 * n] = -1; a[2 * n + 1] = 0; a[2 * n + 2] = 1;
 
       const ipvt = new Array(n).fill(0);
       const success = luFactor(a, n, ipvt);
@@ -184,9 +181,9 @@ describe('Matrix Engine Utilities', () => {
     it('solves identity matrix system', () => {
       const n = 3;
       const a = createMatrix(n);
-      a[0][0] = 1;
-      a[1][1] = 1;
-      a[2][2] = 1;
+      a[0] = 1;
+      a[n + 1] = 1;
+      a[2 * n + 2] = 1;
 
       const ipvt = new Array(n).fill(0);
       const success = luFactor(a, n, ipvt);

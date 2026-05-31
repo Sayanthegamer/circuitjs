@@ -11,6 +11,30 @@ import type { ICircuitElement } from '../engine/types';
 import { ResistorElement, VoltageSourceElement, CapacitorElement, InductorElement, Circuit } from '../engine';
 import { Camera } from '../renderer/camera';
 
+/**
+ * Pushes full UI telemetry data back to the circuit store.
+ */
+function pushTelemetry(circuit: Circuit, steps: number) {
+  const tooLarge = circuit.lastG && circuit.lastG.length > 2500;
+  useCircuitStore.getState().updateTelemetry({
+    simTime: circuit.t,
+    stepsPerFrame: steps,
+    stopMessage: circuit.stopMessage,
+    matrixG: tooLarge
+      ? []
+      : (circuit.lastG && circuit.lastG.length > 0 ? Array.from(circuit.lastG) : [0]),
+    vectorV: tooLarge
+      ? []
+      : (circuit.lastV && circuit.lastV.length > 0 ? [...circuit.lastV] : []),
+    vectorI: tooLarge
+      ? []
+      : (circuit.lastI && circuit.lastI.length > 0 ? [...circuit.lastI] : []),
+    nrErrors: circuit.lastErrors && circuit.lastErrors.length > 0
+      ? [...circuit.lastErrors]
+      : [],
+  });
+}
+
 // Extract the large inline mock to keep the hook clean.
 function createGhostElement(): ICircuitElement {
   return {
@@ -189,29 +213,6 @@ function updatePlotterData(circuit: Circuit, probedItems: any[], plotterRef: any
   }
 }
 
-/**
- * Pushes full UI telemetry data back to the circuit store.
- */
-function pushTelemetry(circuit: Circuit, steps: number) {
-  const tooLarge = circuit.lastG && circuit.lastG.length > 50;
-  useCircuitStore.getState().updateTelemetry({
-    simTime: circuit.t,
-    stepsPerFrame: steps,
-    stopMessage: circuit.stopMessage,
-    matrixG: tooLarge
-      ? []
-      : (circuit.lastG && circuit.lastG.length > 0 ? circuit.lastG.map(row => [...row]) : [[0]]),
-    vectorV: tooLarge
-      ? []
-      : (circuit.lastV && circuit.lastV.length > 0 ? [...circuit.lastV] : []),
-    vectorI: tooLarge
-      ? []
-      : (circuit.lastI && circuit.lastI.length > 0 ? [...circuit.lastI] : []),
-    nrErrors: circuit.lastErrors && circuit.lastErrors.length > 0
-      ? [...circuit.lastErrors]
-      : [],
-  });
-}
 
 /**
  * The core simulation + rendering loop.
@@ -332,6 +333,6 @@ export function useSimulationLoop(
 
     rafRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(rafRef.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 }

@@ -47,9 +47,12 @@ const MatrixInspector: React.FC<MatrixProps> = ({ data, label, precision = 3, hi
     );
   }
 
-  const isVector = !Array.isArray(data[0]);
-  const rows = isVector ? (data as number[]).length : (data as number[][]).length;
-  const cols = isVector ? 1 : (data as number[][])[0].length;
+  // Heuristic: if data length is a perfect square, assume it is an NxN matrix passed as 1D array.
+  // Otherwise, if label contains "Conductance" it might be matrixG (now 1D)
+  const isMatrix1D = label.includes("Conductance");
+  const isVector = !Array.isArray(data[0]) && !isMatrix1D;
+  const rows = isMatrix1D ? Math.sqrt(data.length) : isVector ? (data as number[]).length : (data as number[][]).length;
+  const cols = isMatrix1D ? Math.sqrt(data.length) : isVector ? 1 : (data as number[][])[0].length;
 
   return (
     <div className="flex flex-col gap-2 group">
@@ -72,11 +75,17 @@ const MatrixInspector: React.FC<MatrixProps> = ({ data, label, precision = 3, hi
                 <MatrixCell key={idx} value={val} precision={precision} highlight={highlightChanges} />
               ))
             ) : (
+              isMatrix1D ? (
+              (data as number[]).map((val, idx) => (
+                <MatrixCell key={idx} value={val} precision={precision} highlight={highlightChanges} />
+              ))
+            ) : (
               (data as number[][]).map((row, rIdx) => (
                 row.map((val, cIdx) => (
                   <MatrixCell key={`${rIdx}-${cIdx}`} value={val} precision={precision} highlight={highlightChanges} />
                 ))
               ))
+            )
             )}
           </div>
         </div>
@@ -91,7 +100,7 @@ const MatrixInspector: React.FC<MatrixProps> = ({ data, label, precision = 3, hi
 /**
  * Figure 1.2: The Full MNA System Solver State
  */
-export const SolverMatrixSystem: React.FC<{ G: number[][], v: number[], i: number[] }> = ({ G, v, i }) => {
+export const SolverMatrixSystem: React.FC<{ G: number[], v: number[], i: number[] }> = ({ G, v, i }) => {
   return (
     <div className="my-8 p-6 bg-surface-dim border border-border-hairline rounded-sm shadow-2xl relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent"></div>
