@@ -287,10 +287,10 @@ export function useSimulationLoop(
       }
 
       rafRef.current = requestAnimationFrame(render);
-
+    };
 
     rafRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(rafRef.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 }
