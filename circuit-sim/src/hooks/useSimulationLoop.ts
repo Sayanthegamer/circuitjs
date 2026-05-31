@@ -8,20 +8,12 @@ import { useUIStore } from '../stores/uiStore';
 import { drawGrid } from '../renderer/grid';
 import { drawElement } from '../renderer/element-renderers';
 import type { ICircuitElement } from '../engine/types';
-import { ResistorElement, VoltageSourceElement, CapacitorElement, InductorElement } from '../engine';
+import { ResistorElement, VoltageSourceElement, CapacitorElement, InductorElement, Circuit } from '../engine';
+import { Camera } from '../renderer/camera';
 
-/**
- * The core simulation + rendering loop.
- * Reads all state via store.getState() — never subscribes to React state.
- * Dependency array is [] so the rAF loop mounts once and never re-creates.
- */
-export function useSimulationLoop(
-  canvasRef: React.RefObject<HTMLCanvasElement | null>,
-) {
-  const rafRef = useRef(0);
-  const animTimeRef = useRef(0);
-  
-  const ghostElmRef = useRef<ICircuitElement>({
+// Extract the large inline mock to keep the hook clean.
+function createGhostElement(): ICircuitElement {
+  return {
     id: 'ghost',
     type: 'wire',
     x: 0,
@@ -72,7 +64,166 @@ export function useSimulationLoop(
     doStep: () => {},
     calculateCurrent: () => {},
     reset: () => {},
-  } as unknown as ICircuitElement);
+  } as unknown as ICircuitElement;
+}
+
+/**
+ * Runs the simulation loop for up to SIM_BUDGET_MS per frame.
+ * Returns the number of steps taken.
+ */
+function runSimulationSteps(circuit: Circuit, dt: number, needTelemetryUpdate: boolean): number {
+  let steps = 0;
+  const simStart = performance.now();
+  const SIM_BUDGET_MS = 4.0; // Spend at most 4ms solving simulation equations per frame
+
+  const stepSize = circuit.maxTimeStep > 0 ? circuit.maxTimeStep : 1e-4;
+  const targetSteps = Math.round(dt / stepSize);
+  const maxSteps = Math.max(1, Math.min(targetSteps, 1000));
+
+  for (let i = 0; i < maxSteps; i++) {
+    const captureTelemetry = needTelemetryUpdate && (i === maxSteps - 1);
+    if (!circuit.runStep(captureTelemetry)) {
+      useCircuitStore.setState({ stopMessage: circuit.stopMessage });
+      break;
+    }
+    steps++;
+    if (performance.now() - simStart > SIM_BUDGET_MS) {
+      break;
+    }
+  }
+
+  return steps;
+}
+
+/**
+ * Renders labels (values, magnitudes) for elements on the canvas.
+ */
+function drawValueLabels(ctx: CanvasRenderingContext2D, circuit: Circuit, camera: Camera) {
+  if (camera.zoom <= 0.4) return;
+
+  ctx.font = `${Math.max(9, 11 / Math.max(camera.zoom, 0.5))}px "JetBrains Mono", monospace`;
+  ctx.textAlign = 'center';
+
+  for (const elm of circuit.elements) {
+    if (elm.type === 'wire' || elm.type === 'ground') continue;
+
+    const cx = (elm.x + elm.x2) / 2;
+    const cy = (elm.y + elm.y2) / 2;
+    const dx = elm.x2 - elm.x;
+    const dy = elm.y2 - elm.y;
+    const perpX = -dy;
+    const perpY = dx;
+    const pLen = Math.sqrt(perpX * perpX + perpY * perpY) || 1;
+    const offset = 14;
+    const lx = cx + (perpX / pLen) * offset;
+    const ly = cy + (perpY / pLen) * offset;
+
+    let label = '';
+    if (elm.type === 'resistor') {
+      const r = (elm as ResistorElement).resistance;
+      label = r >= 1e6 ? `${(r / 1e6).toFixed(1)}MΩ` : r >= 1000 ? `${(r / 1000).toFixed(1)}kΩ` : `${r}Ω`;
+    } else if (elm.type === 'voltage') {
+      label = `${(elm as VoltageSourceElement).maxVoltage}V`;
+    } else if (elm.type === 'capacitor') {
+      const c = (elm as CapacitorElement).capacitance;
+      label = c >= 1e-3 ? `${(c * 1000).toFixed(1)}mF` : c >= 1e-6 ? `${(c * 1e6).toFixed(1)}µF` : c >= 1e-9 ? `${(c * 1e9).toFixed(1)}nF` : `${(c * 1e12).toFixed(1)}pF`;
+    } else if (elm.type === 'inductor') {
+      const ind = (elm as InductorElement).inductance;
+      label = ind >= 1 ? `${ind.toFixed(1)}H` : ind >= 1e-3 ? `${(ind * 1000).toFixed(1)}mH` : `${(ind * 1e6).toFixed(1)}µH`;
+    }
+
+    if (label) {
+      ctx.fillStyle = 'rgba(200, 200, 220, 0.7)';
+      ctx.fillText(label, lx, ly);
+    }
+
+    // Current label
+    const cur = elm.getCurrent();
+    if (Math.abs(cur) > 1e-12) {
+      const curLabel = Math.abs(cur) >= 1
+        ? `${cur.toFixed(2)}A`
+        : Math.abs(cur) >= 1e-3
+          ? `${(cur * 1000).toFixed(2)}mA`
+          : `${(cur * 1e6).toFixed(1)}µA`;
+      ctx.fillStyle = 'rgba(255, 238, 100, 0.5)';
+      ctx.fillText(curLabel, lx, ly + 13);
+    }
+  }
+}
+
+/**
+ * Draws the selection box.
+ */
+function drawSelectionBox(ctx: CanvasRenderingContext2D, selectionBox: { x1: number; y1: number; x2: number; y2: number }, camera: Camera) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(74, 144, 226, 0.15)'; // Semi-transparent blue fill
+  ctx.strokeStyle = 'rgba(74, 144, 226, 0.6)'; // Blue border
+  ctx.lineWidth = 1.5 / camera.zoom; // Constant thickness border regardless of zoom
+  ctx.setLineDash([4 / camera.zoom, 4 / camera.zoom]); // Dashed border
+  const bx = Math.min(selectionBox.x1, selectionBox.x2);
+  const by = Math.min(selectionBox.y1, selectionBox.y2);
+  const bw = Math.abs(selectionBox.x2 - selectionBox.x1);
+  const bh = Math.abs(selectionBox.y2 - selectionBox.y1);
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.strokeRect(bx, by, bw, bh);
+  ctx.restore();
+}
+
+/**
+ * Pushes updated probe data to the plotter.
+ */
+function updatePlotterData(circuit: Circuit, probedItems: any[], plotterRef: any) {
+  if (plotterRef.current && probedItems.length > 0) {
+    const values = probedItems.map(item => {
+      const e = circuit.getElement(item.elmId);
+      if (!e) return 0;
+      switch (item.prop) {
+        case 'V1': return e.volts[0];
+        case 'V2': return e.volts[1];
+        case 'Vdiff': return e.getVoltageDiff();
+        case 'I': return e.getCurrent();
+        default: return 0;
+      }
+    });
+    plotterRef.current.pushData(circuit.t, values);
+  }
+}
+
+/**
+ * Pushes full UI telemetry data back to the circuit store.
+ */
+function pushTelemetry(circuit: Circuit, steps: number) {
+  const tooLarge = circuit.lastG && circuit.lastG.length > 50;
+  useCircuitStore.getState().updateTelemetry({
+    simTime: circuit.t,
+    stepsPerFrame: steps,
+    stopMessage: circuit.stopMessage,
+    matrixG: tooLarge
+      ? []
+      : (circuit.lastG && circuit.lastG.length > 0 ? circuit.lastG.map(row => [...row]) : [[0]]),
+    vectorV: tooLarge
+      ? []
+      : (circuit.lastV && circuit.lastV.length > 0 ? [...circuit.lastV] : []),
+    vectorI: tooLarge
+      ? []
+      : (circuit.lastI && circuit.lastI.length > 0 ? [...circuit.lastI] : []),
+    nrErrors: circuit.lastErrors && circuit.lastErrors.length > 0
+      ? [...circuit.lastErrors]
+      : [],
+  });
+}
+
+/**
+ * The core simulation + rendering loop.
+ * Reads all state via store.getState() — never subscribes to React state.
+ * Dependency array is [] so the rAF loop mounts once and never re-creates.
+ */
+export function useSimulationLoop(
+  canvasRef: React.RefObject<HTMLCanvasElement | null>,
+) {
+  const rafRef = useRef(0);
+  const animTimeRef = useRef(0);
+  const ghostElmRef = useRef<ICircuitElement>(createGhostElement());
 
   useEffect(() => {
     let lastTime = 0;
@@ -106,24 +257,9 @@ export function useSimulationLoop(
       // --- Simulate ---
       let steps = 0;
       const needTelemetryUpdate = elapsedTelemetry + dt >= 0.25;
-      const simStart = performance.now();
-      const SIM_BUDGET_MS = 4.0; // Spend at most 4ms solving simulation equations per frame to maintain high FPS
 
       if (simRunning && !circuit.stopMessage) {
-        const stepSize = circuit.maxTimeStep > 0 ? circuit.maxTimeStep : 1e-4;
-        const targetSteps = Math.round(dt / stepSize);
-        const maxSteps = Math.max(1, Math.min(targetSteps, 1000));
-        for (let i = 0; i < maxSteps; i++) {
-          const captureTelemetry = needTelemetryUpdate && (i === maxSteps - 1);
-          if (!circuit.runStep(captureTelemetry)) {
-            useCircuitStore.setState({ stopMessage: circuit.stopMessage });
-            break;
-          }
-          steps++;
-          if (performance.now() - simStart > SIM_BUDGET_MS) {
-            break;
-          }
-        }
+        steps = runSimulationSteps(circuit, dt, needTelemetryUpdate);
       }
 
       // Advance animation time
@@ -151,61 +287,14 @@ export function useSimulationLoop(
       // Draw elements
       for (const elm of circuit.elements) {
         const isSelected = elm.id === selectedId || selectedIds.includes(elm.id);
-
         const isHovered = hoveredElm?.id === elm.id;
         const isDragging = draggingElmId === elm.id;
         drawElement(ctx, elm, isSelected, animTimeRef.current, camera.zoom, isHovered || isDragging ? hoveredNode : undefined);
-
       }
 
       // Draw value labels
-      if (showValues && camera.zoom > 0.4) {
-        ctx.font = `${Math.max(9, 11 / Math.max(camera.zoom, 0.5))}px "JetBrains Mono", monospace`;
-        ctx.textAlign = 'center';
-        for (const elm of circuit.elements) {
-          if (elm.type === 'wire' || elm.type === 'ground') continue;
-          const cx = (elm.x + elm.x2) / 2;
-          const cy = (elm.y + elm.y2) / 2;
-          const dx = elm.x2 - elm.x;
-          const dy = elm.y2 - elm.y;
-          const perpX = -dy;
-          const perpY = dx;
-          const pLen = Math.sqrt(perpX * perpX + perpY * perpY) || 1;
-          const offset = 14;
-          const lx = cx + (perpX / pLen) * offset;
-          const ly = cy + (perpY / pLen) * offset;
-
-          let label = '';
-          if (elm.type === 'resistor') {
-            const r = (elm as ResistorElement).resistance;
-            label = r >= 1e6 ? `${(r / 1e6).toFixed(1)}MΩ` : r >= 1000 ? `${(r / 1000).toFixed(1)}kΩ` : `${r}Ω`;
-          } else if (elm.type === 'voltage') {
-            label = `${(elm as VoltageSourceElement).maxVoltage}V`;
-          } else if (elm.type === 'capacitor') {
-            const c = (elm as CapacitorElement).capacitance;
-            label = c >= 1e-3 ? `${(c * 1000).toFixed(1)}mF` : c >= 1e-6 ? `${(c * 1e6).toFixed(1)}µF` : c >= 1e-9 ? `${(c * 1e9).toFixed(1)}nF` : `${(c * 1e12).toFixed(1)}pF`;
-          } else if (elm.type === 'inductor') {
-            const ind = (elm as InductorElement).inductance;
-            label = ind >= 1 ? `${ind.toFixed(1)}H` : ind >= 1e-3 ? `${(ind * 1000).toFixed(1)}mH` : `${(ind * 1e6).toFixed(1)}µH`;
-          }
-
-          if (label) {
-            ctx.fillStyle = 'rgba(200, 200, 220, 0.7)';
-            ctx.fillText(label, lx, ly);
-          }
-
-          // Current label
-          const cur = elm.getCurrent();
-          if (Math.abs(cur) > 1e-12) {
-            const curLabel = Math.abs(cur) >= 1
-              ? `${cur.toFixed(2)}A`
-              : Math.abs(cur) >= 1e-3
-                ? `${(cur * 1000).toFixed(2)}mA`
-                : `${(cur * 1e6).toFixed(1)}µA`;
-            ctx.fillStyle = 'rgba(255, 238, 100, 0.5)';
-            ctx.fillText(curLabel, lx, ly + 13);
-          }
-        }
+      if (showValues) {
+        drawValueLabels(ctx, circuit, camera);
       }
 
       // Draw ghost element being placed
@@ -223,60 +312,19 @@ export function useSimulationLoop(
 
       // Draw selection box
       if (selectionBox) {
-        ctx.save();
-        ctx.fillStyle = 'rgba(74, 144, 226, 0.15)'; // Semi-transparent blue fill
-        ctx.strokeStyle = 'rgba(74, 144, 226, 0.6)'; // Blue border
-        ctx.lineWidth = 1.5 / camera.zoom; // Constant thickness border regardless of zoom
-        ctx.setLineDash([4 / camera.zoom, 4 / camera.zoom]); // Dashed border
-        const bx = Math.min(selectionBox.x1, selectionBox.x2);
-        const by = Math.min(selectionBox.y1, selectionBox.y2);
-        const bw = Math.abs(selectionBox.x2 - selectionBox.x1);
-        const bh = Math.abs(selectionBox.y2 - selectionBox.y1);
-        ctx.fillRect(bx, by, bw, bh);
-        ctx.strokeRect(bx, by, bw, bh);
-        ctx.restore();
+        drawSelectionBox(ctx, selectionBox, camera);
       }
 
       ctx.restore();
 
       // --- Update Plotter ---
-      if (plotterRef.current && probedItems.length > 0) {
-        const values = probedItems.map(item => {
-          const e = circuit.getElement(item.elmId);
-          if (!e) return 0;
-          switch (item.prop) {
-            case 'V1': return e.volts[0];
-            case 'V2': return e.volts[1];
-            case 'Vdiff': return e.getVoltageDiff();
-            case 'I': return e.getCurrent();
-            default: return 0;
-          }
-        });
-        plotterRef.current.pushData(circuit.t, values);
-      }
+      updatePlotterData(circuit, probedItems, plotterRef);
 
       // --- Update UI telemetry ---
       elapsedTelemetry += dt;
       if (elapsedTelemetry >= 0.25) {
         elapsedTelemetry = 0;
-        const tooLarge = circuit.lastG && circuit.lastG.length > 50;
-        useCircuitStore.getState().updateTelemetry({
-          simTime: circuit.t,
-          stepsPerFrame: steps,
-          stopMessage: circuit.stopMessage,
-          matrixG: tooLarge
-            ? []
-            : (circuit.lastG && circuit.lastG.length > 0 ? circuit.lastG.map(row => [...row]) : [[0]]),
-          vectorV: tooLarge
-            ? []
-            : (circuit.lastV && circuit.lastV.length > 0 ? [...circuit.lastV] : []),
-          vectorI: tooLarge
-            ? []
-            : (circuit.lastI && circuit.lastI.length > 0 ? [...circuit.lastI] : []),
-          nrErrors: circuit.lastErrors && circuit.lastErrors.length > 0
-            ? [...circuit.lastErrors]
-            : [],
-        });
+        pushTelemetry(circuit, steps);
       }
 
       rafRef.current = requestAnimationFrame(render);
